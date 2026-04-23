@@ -5,7 +5,7 @@ const options = {
     url: 'https://bsky.app',
     device: 'desktop',
     blockAds: true,
-    renderJS: false,
+    renderJS: true,
     proxyCountry: 'us',
     format: ['html-llm'],
     fileOutput: false,
@@ -19,3 +19,6 @@ fetch('https://api.geekflare.com/webscraping', options)
   .then(res => res.json())
   .then(res => console.log(res))
   .catch(err => console.error(err));
+
+//Work with the response gathered from app.py.
+console.log('here')
