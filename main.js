@@ -22,3 +22,14 @@ fetch('https://api.geekflare.com/webscraping', options)
 
 //Work with the response gathered from app.py.
 console.log('here')
+
+document.addEventListener('DOMContentLoaded', function() {
+  //The result from scraping was sent in the HTML file this script acts on. Here it is. 
+  text: String = document.querySelector('#show_word_count').value
+  if (!localStorage.getItem('word_count')) {
+    localStorage.setItem('word_count', text[0])
+  }
+
+  word_count = localStorage.getItem('word_count')
+  document.querySelector('#show_word_count').innerHTML = word_count
+})
