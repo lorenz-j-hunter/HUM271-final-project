@@ -1,14 +1,16 @@
-from flask import Flask, render_template, request
+from flask import Flask, render_template, request, g
 import requests # pyright: ignore[reportMissingModuleSource]
+from typing import Any
+import os
+from sqlite3 import dbapi2 as sqlite3
 
-# All URL endpoints used.
+"""Global API endpoints."""
 # We use 'actors' to get a query of said actor's feed. 
 actors_endpoint = "https://public.api.bsky.app/xrpc/app.bsky.actor.searchActors"
 
 # All endpoint parameters used.
-
 actors_params: dict[str, str | int] = {
-  "q" : "", # an empty string returns `general users`. 
+  "q" : "a", # keep the query down to one vowel to maximize the search results. 
   "limit" : 5 
 }
 
@@ -17,42 +19,112 @@ actors: requests.Response = requests.get(
   actors_endpoint, actors_params
 )
 
-# Now that we have a list of actors, we will search their feed.
-feeds_endpoint = "https://public.api.bsky.app/xrpc/app.bsky.feeds/getActorFeeds"
-feeds_params: dict[str, str | int] = {
-  "actor" : "",
-  "limit" : 5
-}
-
-actors_feeds: requests.Response = requests.get(
-  feeds_endpoint, feeds_params 
-)
-
-# Open the app
 app = Flask(__name__)
 
-print(actors.json())
+# Load default config and override config from an environment variable
+app.config.update(dict(
+    DATABASE=os.path.join(app.root_path, 'flaskr.db'),
+    SECRET_KEY='development key',
+))
+app.config.from_envvar('FLASKR_SETTINGS', silent=True)
+
+
+def connect_db():
+    """Connects to the specific database."""
+    rv = sqlite3.connect(app.config['DATABASE'])
+    rv.row_factory = sqlite3.Row
+    return rv
+
+
+def init_db():
+    """Initializes the database."""
+    db = get_db()
+    with app.open_resource('schema.sql', mode='r') as f:
+        db.cursor().executescript(f.read())
+    db.commit()
+
+
+@app.cli.command('initdb')
+def initdb_command():
+    """Creates the database tables."""
+    init_db()
+    print('Initialized the database.')
+
+
+def get_db():
+    """Opens a new database connection if there is none yet for the
+    current application context.
+    """
+    if not hasattr(g, 'sqlite_db'):
+        g.sqlite_db = connect_db()
+    return g.sqlite_db
+
+
+@app.teardown_appcontext
+def close_db(error):
+    """Closes the database again at the end of the request."""
+    if hasattr(g, 'sqlite_db'):
+        g.sqlite_db.close()
 
 @app.route('/', methods=['GET','POST'])
-def main():
+def bluesky():
   """Open the main route for the app.
-
-  In Bluesky, the text from any post in the JSON is arranged like so:
-  feed > post > record > text
-
-  If you want to traverse by feed/fetched stuff, then change the `[0]` here to whatever number you choose,
-  provided it is less than `limit` in your params.
-
-  If you want stuff other than the text, like the author, you can play with `get('post')`. 
+  Here, we gather the info needed to create a CSV
   """
-  text: list[str] = []
-  for post in range(actors_params.get('limit')): # type: ignore
-    # We gather all of the columns for the CSV at this point.
-    # Those four columns were (1) actor, (2) gender, (2) feed, (3) Perceived opinion.
-    # We create four variables now, each of which represents a column 
-    actor = actors_feeds.json().get('feed', None)[post].get('creator').get('displayName')
-    pronouns = actors_feeds.json().get('feed', None)[post].get('creator').get('pronouns')
-    feed = actors_feeds.json().get('feed', None)[post].get('creator').get('pronouns')
-    opinion = actors_feeds.json().get('feed', None)[post].get('creator').get('associated').get('chat')
-    text.append(opinion.get('text'))
-  return render_template('main.html', text=text)
+  # These are our return values. Each represent a column of the CSV we want to create with this
+  # function.
+  # We also include 'identifiers'. This is the DID of users in question. It is used later.
+  users: list[str] = []
+  genders: list[str] = []
+  follows: list[list[str]] = []
+  text: list[list[str]] = []
+  identifiers: list[str] = []
+  # Now that we have a list of actors from global, we can search their feeds locally.
+  posts_endpoint: str = "https://api.bsky.app/xrpc/app.bsky.feed.searchPosts"
+  follows_endpoint: str = "https://api.bsky.app/xrpc/app.bsky.graph.getFollows"
+  all_posts: dict[str, list[str]] = {}
+  all_follows: dict[str, list[str]] = {}
+  for actor in range(actors_params.get('limit')): # type: ignore
+    # Here, we traverse the thing by actor.
+    # We separate actors' at-identifiers (did) from the json first. 
+    for actor in actors.json().get('actors'):
+      identifiers.append(actor.get('handle'))
+    # Here, we gather all post data. 
+    # It is stored in a dict; the DID of the user in question is
+    # the key and the corresponding *list* of posts is the value.
+    # We limit the number of posts to 5.
+    for identifier in identifiers:
+      posts_params: dict[str, str | int] = {
+        "q" : "a",
+        "author" : identifier,
+        'limit' : 5
+      }
+      post_response: requests.Response = requests.get(
+        posts_endpoint, posts_params 
+      )
+      all_posts[identifier] = post_response.json().get('posts') # type: ignore
+
+      # Now here we gather all follow data.
+      # These are inserted into a dictionary called 'all_follows', which
+      # has as it's key the handle and as a value the list of all follows
+      # (their handles).
+      # We limit the number of follows to 5.
+      follows_params: dict[str, str | int] = {
+        "actor" : identifier,
+        "limit" : 5
+      } 
+      follows_response: requests.Response = requests.get(
+         follows_endpoint, follows_params  
+      )
+      all_follows[identifier] = follows_response.json().get('follows')
+  # Now we extract from the dict of posts we just got. 
+  # We gather all of the columns for the CSV at this point.
+  # Those four columns were (1) actor, (2) gender, (2) perceived audience, (3) Perceived opinion.
+  # We create four variables now, each of which represents a column
+  for i in range(actors_params.get('limit')): # type: ignore
+    users.append(actors.json().get('actors')[i].get('displayName')) 
+    genders.append(actors.json().get('actors')[i].get('pronouns'))
+  for identifier in identifiers:
+     follows.append(all_follows[identifier])
+     text.append(all_posts[identifier])
+  return render_template('main.html', users=users, genders=genders, follows=follows, text=text)
