@@ -1,22 +1,38 @@
 from flask import Flask, render_template, request, g
 import requests # pyright: ignore[reportMissingModuleSource]
 from typing import Any
-import os
+import os, random
 from sqlite3 import dbapi2 as sqlite3
 
-"""Global API endpoints."""
+"""Global API endpoints. Bluesky."""
 # We use 'actors' to get a query of said actor's feed. 
-actors_endpoint = "https://public.api.bsky.app/xrpc/app.bsky.actor.searchActors"
+b_actors_endpoint = "https://public.api.bsky.app/xrpc/app.bsky.actor.searchActors"
 
 # All endpoint parameters used.
-actors_params: dict[str, str | int] = {
+b_actors_params: dict[str, str | int] = {
   "q" : "a", # keep the query down to one vowel to maximize the search results. 
   "limit" : 5 
 }
 
 # The responses created with these endpoints and their parameters.
 actors: requests.Response = requests.get(
-  actors_endpoint, actors_params
+  b_actors_endpoint, b_actors_params
+)
+
+"X."
+x_actors_endpoint: str = "https://api.x.com/2/users"
+
+# Query matches '^[0-9]{1,10}$.
+# This use of 'randrange' ensures a different actor is used each time.A
+ids: list[str] = []
+for i in range(5):
+  ids[i] = str(random.randrange(1, 9999999999999999999))
+x_actors_params: dict[str, list[str]] = {
+  "id" : ids 
+}
+
+x_actors: requests.Response = requests.get(
+  x_actors_endpoint, x_actors_params
 )
 
 app = Flask(__name__)
@@ -68,7 +84,7 @@ def close_db(error):
 
 @app.route('/', methods=['GET','POST'])
 def bluesky():
-  """Open the main route for the app.
+  """Open the route for bluesky api.
   Here, we gather the info needed to create a CSV
   """
   # These are our return values. Each represent a column of the CSV we want to create with this
@@ -146,6 +162,73 @@ def bluesky():
   db = get_db()
   for row in range(len(users)):
     db.execute("INSERT INTO bluesky (user, gender, follows, text) VALUES (?, ?, ?, ?)",
+              [users[row], genders[row], follows[row], text[row]])
+    db.commit()
+  return render_template('main.html', users=users, genders=genders, follows=follows, text=text)
+
+def x():
+  """Open the route for x api.
+  Here, we gather the info needed to create a CSV
+  """
+  # These are our return values. Each represent a column of the CSV we want to create with this
+  # function.
+  users: list[str] = []
+  genders: list[str] = []
+  follows: list[str] = []
+  text: list[str] = []
+  posts_endpoint: str = "https://api.x.com/2/tweets" 
+  follows_endpoint: str = f"https://api.x.com/2/users/{x_actors.json().get('id')}/following" 
+  # Key: Handle of user in question
+  # Value: URI of text from post.
+  all_posts: dict[str, str] = {} 
+  # We get the post data here. 
+  for id in ids:
+    # Open the secret auth file to preserve security, then enter the key there
+    # in the parameters for post retrieval.
+    # It tells the response to get the text of the posts from users with corresponding ids. 
+    auth_file = open(os.path.relpath("../../authorization/x_authorization.txt"), 'r')
+    authorization: str = str(auth_file)
+    os.close(auth_file) # pyright: ignore[reportArgumentType]
+    posts_params: dict[str, str | list[str]] = {
+      "authorization" : authorization,
+      "ids" : ids,
+      "tweet.fields" : ["text"]
+    }
+    posts_response: requests.Response = requests.get(
+      posts_endpoint, posts_params
+    )
+    # Map the id of the user in question with the post she or he made. 
+    all_posts[id] = posts_response.text[0]
+
+
+    # Key: Handle of the user in question
+    # Value: Handle of the followed user 
+    all_follows: dict[str, str] = {}
+    follows_params: dict[str, str | list[str]] = {
+      "authorization" : authorization,
+      "id" : id,
+      "user.fields" : ['id']
+    }
+    follows_response: requests.Response = requests.get(
+       follows_endpoint, follows_params
+    )
+    # Map the id of the user in question with the ID of one of their follows.
+    all_follows[id] = follows_response.json().get('data')[0].get('id')
+  # Here, we offload the data we just stored into a common 
+  # set of lists.
+  for id in ids:
+    users.append(id) 
+  for i in range(len(ids)):
+     genders.append('none')
+  for i in range(len(ids)):
+    user: str = ids[i]
+    text.append(all_posts[user])
+    follows.append(all_follows[user])
+  # Here, we add all of this information to the database
+  # in order to use it in other functions.
+  db = get_db()
+  for row in range(len(ids)):
+    db.execute("INSERT INTO x (user, gender, follows, text) VALUES (?, ?, ?, ?)",
               [users[row], genders[row], follows[row], text[row]])
     db.commit()
   return render_template('main.html', users=users, genders=genders, follows=follows, text=text)
