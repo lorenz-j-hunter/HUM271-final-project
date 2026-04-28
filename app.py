@@ -23,7 +23,7 @@ app = Flask(__name__)
 
 # Load default config and override config from an environment variable
 app.config.update(dict(
-    DATABASE=os.path.join(app.root_path, 'flaskr.db'),
+    DATABASE=os.path.join(app.root_path, 'database.db'),
     SECRET_KEY='development key',
 ))
 app.config.from_envvar('FLASKR_SETTINGS', silent=True)
@@ -76,14 +76,19 @@ def bluesky():
   # We also include 'identifiers'. This is the DID of users in question. It is used later.
   users: list[str] = []
   genders: list[str] = []
-  follows: list[list[str]] = []
-  text: list[list[str]] = []
+  follows: list[str] = []
+  text: list[str] = []
+  # This is a list of handles of users. 
   identifiers: list[str] = []
   # Now that we have a list of actors from global, we can search their feeds locally.
   posts_endpoint: str = "https://api.bsky.app/xrpc/app.bsky.feed.searchPosts"
   follows_endpoint: str = "https://api.bsky.app/xrpc/app.bsky.graph.getFollows"
-  all_posts: dict[str, list[str]] = {}
-  all_follows: dict[str, list[str]] = {}
+  # Key: Handle of user in question
+  # Value: URI of text from post.
+  all_posts: dict[str, str] = {} 
+  # Key: Handle of the user in question
+  # Value: Handle of the followed user 
+  all_follows: dict[str, str] = {}
   for actor in range(actors_params.get('limit')): # type: ignore
     # Here, we traverse the thing by actor.
     # We separate actors' at-identifiers (did) from the json first. 
@@ -97,34 +102,50 @@ def bluesky():
       posts_params: dict[str, str | int] = {
         "q" : "a",
         "author" : identifier,
-        'limit' : 5
+        'limit' : 1 
       }
       post_response: requests.Response = requests.get(
         posts_endpoint, posts_params 
       )
-      all_posts[identifier] = post_response.json().get('posts') # type: ignore
-
+      all_posts[identifier] = post_response.json().get('posts')[0].get('uri')
       # Now here we gather all follow data.
       # These are inserted into a dictionary called 'all_follows', which
       # has as it's key the handle and as a value the list of all follows
       # (their handles).
-      # We limit the number of follows to 5.
+      # We limit the number of follows to 1.
       follows_params: dict[str, str | int] = {
         "actor" : identifier,
-        "limit" : 5
+        "limit" : 1 
       } 
       follows_response: requests.Response = requests.get(
          follows_endpoint, follows_params  
       )
-      all_follows[identifier] = follows_response.json().get('follows')
+      all_follows[identifier] = follows_response.json().get('follows')[0].get('handle')
   # Now we extract from the dict of posts we just got. 
   # We gather all of the columns for the CSV at this point.
   # Those four columns were (1) actor, (2) gender, (2) perceived audience, (3) Perceived opinion.
   # We create four variables now, each of which represents a column
+
   for i in range(actors_params.get('limit')): # type: ignore
-    users.append(actors.json().get('actors')[i].get('displayName')) 
-    genders.append(actors.json().get('actors')[i].get('pronouns'))
+    # the 'displayName' key is not required. 
+    if (actors.json().get('actors')[i].get("displayName") is not None):
+      users.append(actors.json().get('actors')[i].get('displayName'))
+    else:
+      users.append('none') 
+    # The 'pronouns' key is not required.
+    if (actors.json().get('actors')[i].get('pronouns') is not None):
+      genders.append(actors.json().get('actors')[i].get('pronouns'))
+    else:
+      genders.append('none')
   for identifier in identifiers:
-     follows.append(all_follows[identifier])
-     text.append(all_posts[identifier])
+    follows.append(all_follows[identifier])
+    text.append(all_posts[identifier])
+  # Finally, we add these columns to a database.
+  # It's in the database that the data will be operated on
+  # to find refined things like 'perceived opinion'.
+  db = get_db()
+  for row in range(len(users)):
+    db.execute("INSERT INTO bluesky (user, gender, follows, text) VALUES (?, ?, ?, ?)",
+              [users[row], genders[row], follows[row], text[row]])
+    db.commit()
   return render_template('main.html', users=users, genders=genders, follows=follows, text=text)
