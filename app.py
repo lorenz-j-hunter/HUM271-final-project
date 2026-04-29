@@ -6,8 +6,8 @@ from sqlite3 import dbapi2 as sqlite3
 
 def get_auth(location: str) -> str:
   """Get an auth token or key from a hidden file."""
-  with open(os.path.relpath("../../authorization/"+location, 'r')) as auth_file:
-    ret: str = str(auth_file)
+  with open(os.path.relpath("authorization/"+location, 'r')) as auth_file:
+    ret: str = auth_file.read() 
     return ret
   return None
 
@@ -27,27 +27,27 @@ actors: requests.Response = requests.get(
   b_actors_endpoint, b_actors_params
 )
 
-"X."
-x_actors_endpoint: str = "https://api.x.com/2/users"
+"Open X."
+url = "https://twitter-api45.p.rapidapi.com/screenname.php"
 
-# Query matches '^[0-9]{1,10}$.
-# This use of 'randrange' ensures a different actor is used each call.
-ids: list[str] = []
-for i in range(5):
-  ids[i] = str(random.randrange(1, 9999999999999999999))
-x_actors_params: dict[str, list[str]] = {
-  "id" : ids 
+# Get a single random user.
+rest_id: int = random.randrange(1, 999999999)
+querystring = {"screenname":"","rest_id":rest_id}
+
+headers = {
+	"x-rapidapi-key": get_auth('x_authorization.txt'),
+	"x-rapidapi-host": "twitter-api45.p.rapidapi.com",
+	"Content-Type": "application/json"
 }
 
-x_actors: requests.Response = requests.get(
-  x_actors_endpoint, x_actors_params
-)
+x_user_info = requests.get(url, headers=headers, params=querystring)
+
 
 """Open the Pornhub response."""
 url = "https://pornhub2.p.rapidapi.com/v2/video_by_id"
 querystring = {"id":"ph59faf67490ebe","thumbsize":"small"}
 headers = {
-	"x-rapidapi-key": get_auth('pornhub.txt'),
+	"x-rapidapi-key": get_auth('pornhub_key.txt'),
 	"x-rapidapi-host": "pornhub2.p.rapidapi.com",
 	"Content-Type": "application/json"
 }
@@ -101,11 +101,11 @@ def close_db(error):
     if hasattr(g, 'sqlite_db'):
         g.sqlite_db.close()
 
-@app.route('/', methods=[])
+@app.route('/', methods=['GET'])
 def main():
   return render_template('main.html')
 
-@app.route('/bluesky', methods=[])
+@app.route('/bluesky', methods=['POST'])
 def bluesky():
   """Open the route which uses the bluesky api. 
   - Here, we gather the info needed to create a CSV
@@ -132,7 +132,7 @@ def bluesky():
   # Key: Handle of the user in question
   # Value: Handle of the followed user 
   all_follows: dict[str, str] = {}
-  for actor in range(actors_params.get('limit')): # type: ignore
+  for actor in range(b_actors_params.get('limit')): # type: ignore
     # Here, we traverse the thing by actor.
     # We separate actors' at-identifiers (did) from the json first. 
     for actor in actors.json().get('actors'):
@@ -169,7 +169,7 @@ def bluesky():
   # Those four columns were (1) actor, (2) gender, (2) perceived audience, (3) Perceived opinion.
   # We create four variables now, each of which represents a column
 
-  for i in range(actors_params.get('limit')): # type: ignore
+  for i in range(b_actors_params.get('limit')): # type: ignore
     # the 'displayName' key is not required. 
     if (actors.json().get('actors')[i].get("displayName") is not None):
       users.append(actors.json().get('actors')[i].get('displayName'))
@@ -193,7 +193,7 @@ def bluesky():
     db.commit()
   return render_template('bluesky.html', users=users, genders=genders, follows=follows, text=text)
 
-@app.route('/x', methods=[])
+@app.route('/x', methods=['POST'])
 def x():
   """Open the route which uses the x api. 
   - Here, we gather the info needed to create a CSV
@@ -208,61 +208,9 @@ def x():
   genders: list[str] = []
   follows: list[str] = []
   text: list[str] = []
-  posts_endpoint: str = "https://api.x.com/2/tweets" 
-  follows_endpoint: str = f"https://api.x.com/2/users/{x_actors.json().get('id')}/following" 
-  # Key: Handle of user in question
-  # Value: URI of text from post.
-  all_posts: dict[str, str] = {} 
-  # We get the post data here. 
-  for id in ids:
-    # Open the secret auth file to preserve security, then enter the key there
-    # in the parameters for post retrieval.
-    # It tells the response to get the text of the posts from users with corresponding ids. 
-    posts_params: dict[str, str | list[str]] = {
-      "authorization" : get_auth('x_authorization.txt'),
-      "ids" : ids,
-      "tweet.fields" : ["text"]
-    }
-    posts_response: requests.Response = requests.get(
-      posts_endpoint, posts_params
-    )
-    # Map the id of the user in question with the post she or he made. 
-    all_posts[id] = posts_response.text[0]
-
-
-    # Key: Handle of the user in question
-    # Value: Handle of the followed user 
-    all_follows: dict[str, str] = {}
-    follows_params: dict[str, str | list[str]] = {
-      "authorization" : get_auth('x_authorization.txt'),
-      "id" : id,
-      "user.fields" : ['id']
-    }
-    follows_response: requests.Response = requests.get(
-       follows_endpoint, follows_params
-    )
-    # Map the id of the user in question with the ID of one of their follows.
-    all_follows[id] = follows_response.json().get('data')[0].get('id')
-  # Here, we offload the data we just stored into a common 
-  # set of lists.
-  for id in ids:
-    users.append(id) 
-  for i in range(len(ids)):
-     genders.append('none')
-  for i in range(len(ids)):
-    user: str = ids[i]
-    text.append(all_posts[user])
-    follows.append(all_follows[user])
-  # Here, we add all of this information to the database
-  # in order to use it in other functions.
-  db = get_db()
-  for row in range(len(ids)):
-    db.execute("INSERT INTO x (user, gender, follows, text) VALUES (?, ?, ?, ?)",
-              [users[row], genders[row], follows[row], text[row]])
-    db.commit()
   return render_template('x.html', users=users, genders=genders, follows=follows, text=text)
 
-@app.route('/pornhub', methods=[])
+@app.route('/pornhub', methods=['POST'])
 def pornhub():
   """Open the route which uses the pornhub api. 
   - Here, we gather the info needed to create a CSV
@@ -278,7 +226,7 @@ def pornhub():
   # watch.
   # With that, we can compare data like title interpretations for 'perceived opinion',
   # quantity of one video group with quantity of another video group. 
-  pre_tags: list[dict[str, str]] = pornhub_response.json().get('data').get('video').get('tags') 
+  pre_tags: list[dict[str, str]] = pornhub_response.json().get('data').get('video').get('tags')
   tags: list[list[str]] = []
   for tag in pre_tags:
     tags.append(tag.get('tag_name')) # pyright: ignore[reportArgumentType]
