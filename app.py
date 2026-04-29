@@ -4,6 +4,14 @@ from typing import Any
 import os, random
 from sqlite3 import dbapi2 as sqlite3
 
+def get_auth(location: str) -> str:
+  """Get an auth token or key from a hidden file."""
+  with open(os.path.relpath("../../authorization/"+location, 'r')) as auth_file:
+    ret: str = str(auth_file)
+    return ret
+  return None
+
+
 """Global API endpoints. Bluesky."""
 # We use 'actors' to get a query of said actor's feed. 
 b_actors_endpoint = "https://public.api.bsky.app/xrpc/app.bsky.actor.searchActors"
@@ -23,7 +31,7 @@ actors: requests.Response = requests.get(
 x_actors_endpoint: str = "https://api.x.com/2/users"
 
 # Query matches '^[0-9]{1,10}$.
-# This use of 'randrange' ensures a different actor is used each time.A
+# This use of 'randrange' ensures a different actor is used each call.
 ids: list[str] = []
 for i in range(5):
   ids[i] = str(random.randrange(1, 9999999999999999999))
@@ -35,14 +43,25 @@ x_actors: requests.Response = requests.get(
   x_actors_endpoint, x_actors_params
 )
 
+"""Open the Pornhub response."""
+url = "https://pornhub2.p.rapidapi.com/v2/video_by_id"
+querystring = {"id":"ph59faf67490ebe","thumbsize":"small"}
+headers = {
+	"x-rapidapi-key": get_auth('pornhub.txt'),
+	"x-rapidapi-host": "pornhub2.p.rapidapi.com",
+	"Content-Type": "application/json"
+}
+pornhub_response = requests.get(url, headers=headers, params=querystring)
+
+
 app = Flask(__name__)
 
 # Load default config and override config from an environment variable
 app.config.update(dict(
     DATABASE=os.path.join(app.root_path, 'database.db'),
-    SECRET_KEY='development key',
+    SECRET_KEY=get_auth('secret_key.txt'),
 ))
-app.config.from_envvar('FLASKR_SETTINGS', silent=True)
+app.config.from_envvar('HUM271_SETTINGS', silent=True)
 
 
 def connect_db():
@@ -82,10 +101,18 @@ def close_db(error):
     if hasattr(g, 'sqlite_db'):
         g.sqlite_db.close()
 
-@app.route('/', methods=['GET','POST'])
+@app.route('/', methods=[])
+def main():
+  return render_template('main.html')
+
+@app.route('/bluesky', methods=[])
 def bluesky():
-  """Open the route for bluesky api.
-  Here, we gather the info needed to create a CSV
+  """Open the route which uses the bluesky api. 
+  - Here, we gather the info needed to create a CSV
+  - We also store the data we fetch in a database.
+  - The raw data is sent as arguments into an HTML file, while
+    raw data is also stored in a database should a developer
+    want to operate on it.
   """
   # These are our return values. Each represent a column of the CSV we want to create with this
   # function.
@@ -164,11 +191,16 @@ def bluesky():
     db.execute("INSERT INTO bluesky (user, gender, follows, text) VALUES (?, ?, ?, ?)",
               [users[row], genders[row], follows[row], text[row]])
     db.commit()
-  return render_template('main.html', users=users, genders=genders, follows=follows, text=text)
+  return render_template('bluesky.html', users=users, genders=genders, follows=follows, text=text)
 
+@app.route('/x', methods=[])
 def x():
-  """Open the route for x api.
-  Here, we gather the info needed to create a CSV
+  """Open the route which uses the x api. 
+  - Here, we gather the info needed to create a CSV
+  - We also store the data we fetch in a database.
+  - The raw data is sent as arguments into an HTML file, while
+    raw data is also stored in a database should a developer
+    want to operate on it.
   """
   # These are our return values. Each represent a column of the CSV we want to create with this
   # function.
@@ -186,11 +218,8 @@ def x():
     # Open the secret auth file to preserve security, then enter the key there
     # in the parameters for post retrieval.
     # It tells the response to get the text of the posts from users with corresponding ids. 
-    auth_file = open(os.path.relpath("../../authorization/x_authorization.txt"), 'r')
-    authorization: str = str(auth_file)
-    os.close(auth_file) # pyright: ignore[reportArgumentType]
     posts_params: dict[str, str | list[str]] = {
-      "authorization" : authorization,
+      "authorization" : get_auth('x_authorization.txt'),
       "ids" : ids,
       "tweet.fields" : ["text"]
     }
@@ -205,7 +234,7 @@ def x():
     # Value: Handle of the followed user 
     all_follows: dict[str, str] = {}
     follows_params: dict[str, str | list[str]] = {
-      "authorization" : authorization,
+      "authorization" : get_auth('x_authorization.txt'),
       "id" : id,
       "user.fields" : ['id']
     }
@@ -231,4 +260,27 @@ def x():
     db.execute("INSERT INTO x (user, gender, follows, text) VALUES (?, ?, ?, ?)",
               [users[row], genders[row], follows[row], text[row]])
     db.commit()
-  return render_template('main.html', users=users, genders=genders, follows=follows, text=text)
+  return render_template('x.html', users=users, genders=genders, follows=follows, text=text)
+
+@app.route('/pornhub', methods=[])
+def pornhub():
+  """Open the route which uses the pornhub api. 
+  - Here, we gather the info needed to create a CSV
+  - We also store the data we fetch in a database.
+  - The raw data is sent as arguments into an HTML file, while
+    raw data is also stored in a database should a developer
+    want to operate on it.
+  """
+  # These are our return values. Each represent a column of the CSV we want to create with this
+  # function.
+  # Pornhub doesn't have a rich text circulation, so we grab the title and tag.
+  # We can assume that the demographic of watcher influences which type of video they
+  # watch.
+  # With that, we can compare data like title interpretations for 'perceived opinion',
+  # quantity of one video group with quantity of another video group. 
+  pre_tags: list[dict[str, str]] = pornhub_response.json().get('data').get('video').get('tags') 
+  tags: list[list[str]] = []
+  for tag in pre_tags:
+    tags.append(tag.get('tag_name')) # pyright: ignore[reportArgumentType]
+  text: list[str] = pornhub_response.json().get('data').get('video').get('title') 
+  return render_template('pornhub.html', tags=tags, text=text)
