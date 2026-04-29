@@ -7,4 +7,16 @@
         <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-sRIl4kxILFvY47J16cr9ZwB07vP4J8+LH7qKQnuqkuIAvNWLzeN8tE5YBujZqJLB" crossorigin="anonymous">
     </head>
     {% block body %} {% endblock %}
+    <ul>
+        <form action="{{ url_for('bluesky') }}" method="POST">
+            <button type="submit">Go to Bluesky</button>
+        </form>
+        <form action="{{ url_for('x') }}" method="POST">
+            <button type="submit">Go to X</button>
+        </form>
+        <form action="{{ url_for('pornhub') }}" method="POST">
+            <button type="submit">Go to pornhub</button>
+        </form>
+    </ul>
+
 </html>

@@ -12,38 +12,55 @@ def get_auth(location: str) -> str:
   return None
 
 
-"""Global API endpoints. Bluesky."""
+"""Global API responses for Bluesky."""
 # We use 'actors' to get a query of said actor's feed. 
 b_actors_endpoint = "https://public.api.bsky.app/xrpc/app.bsky.actor.searchActors"
-
 # All endpoint parameters used.
 b_actors_params: dict[str, str | int] = {
   "q" : "a", # keep the query down to one vowel to maximize the search results. 
   "limit" : 5 
 }
-
 # The responses created with these endpoints and their parameters.
 actors: requests.Response = requests.get(
   b_actors_endpoint, b_actors_params
 )
 
-"Open X."
-url = "https://twitter-api45.p.rapidapi.com/screenname.php"
-
+"Global API responses for X."
+x_users_url = "https://twitter-api45.p.rapidapi.com/screenname.php"
 # Get a single random user.
 rest_id: int = random.randrange(1, 999999999)
-querystring = {"screenname":"","rest_id":rest_id}
-
-headers = {
+x_users_querystring = {"screenname":"","rest_id":rest_id}
+x_users_headers = {
 	"x-rapidapi-key": get_auth('x_authorization.txt'),
 	"x-rapidapi-host": "twitter-api45.p.rapidapi.com",
 	"Content-Type": "application/json"
 }
+# The user info.
+x_users_response = requests.get(x_users_url, headers=x_users_headers, params=x_users_querystring)
+screenname: str = x_users_response.json().get('profile')
 
-x_user_info = requests.get(url, headers=headers, params=querystring)
+# now we get follow data.
+x_follows_url = "https://twitter-api45.p.rapidapi.com/following.php"
+x_follows_querystring = {"screenname":screenname}
+x_follows_headers = {
+	"x-rapidapi-key": get_auth('x_authorization.txt'),
+	"x-rapidapi-host": "twitter-api45.p.rapidapi.com",
+	"Content-Type": "application/json"
+}
+x_follows_response = requests.get(x_follows_url, headers=x_follows_headers, params=x_follows_querystring)
+
+# now we get post data.
+x_post_url = "https://twitter-api45.p.rapidapi.com/tweet.php"
+x_post_querystring = {"id":rest_id}
+x_post_headers = {
+	"x-rapidapi-key": get_auth('x_authorization.txt'),
+	"x-rapidapi-host": "twitter-api45.p.rapidapi.com",
+	"Content-Type": "application/json"
+}
+x_post_response = requests.get(x_post_url, headers=x_post_headers, params=x_post_querystring)
 
 
-"""Open the Pornhub response."""
+"""Global API responses for Pornhub."""
 url = "https://pornhub2.p.rapidapi.com/v2/video_by_id"
 querystring = {"id":"ph59faf67490ebe","thumbsize":"small"}
 headers = {
@@ -205,9 +222,26 @@ def x():
   # These are our return values. Each represent a column of the CSV we want to create with this
   # function.
   users: list[str] = []
+  users.append(x_users_response.json().get('name'))
   genders: list[str] = []
-  follows: list[str] = []
+  genders.append('none')
+  # We insert the response data we got above - before creating the app - here.
+  # The 'follows' is a list of user id.
+  follows: list[str] = [] 
+  print(x_follows_response.json())
+  if (len(x_follows_response.json().get('following')) > 0):
+    follows.append(x_follows_response.json().get('following')[0].get('user_id'))
   text: list[str] = []
+  text.append(x_post_response.json().get('text'))
+  # We insert all information into a database here.
+  db = get_db()
+  for i in range(len(users)):
+    try:
+      db.execute('INSERT INTO x (user, gender, follows, text) VALUES (?, ?, ?, ?)',
+                [users[i], genders[i], follows[i], text[i]])
+      db.commit()
+    except IndexError:
+       pass
   return render_template('x.html', users=users, genders=genders, follows=follows, text=text)
 
 @app.route('/pornhub', methods=['POST'])
@@ -231,4 +265,12 @@ def pornhub():
   for tag in pre_tags:
     tags.append(tag.get('tag_name')) # pyright: ignore[reportArgumentType]
   text: list[str] = pornhub_response.json().get('data').get('video').get('title') 
+  # Finally, we add these to the database.
+  # We only add one tag per video, as this version currently does not
+  # support more than 2 dimensions in the DB. 
+  db = get_db()
+  for i in range(len(tags)):
+    db.execute('INSERT INTO pornhub (title, tag) VALUES (?, ?)',
+              [text[i], tags[0]])
+    db.commit()
   return render_template('pornhub.html', tags=tags, text=text)
