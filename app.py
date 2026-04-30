@@ -1,8 +1,9 @@
-from flask import Flask, render_template, request, g
+from flask import Flask, render_template
 import requests # pyright: ignore[reportMissingModuleSource]
-from typing import Any
 import os, random
-from sqlite3 import dbapi2 as sqlite3
+from utility.db_commands import get_db
+from utility.classes import item, ret
+import utility.classes
 
 def get_auth(location: str) -> str:
   """Get an auth token or key from a hidden file."""
@@ -80,44 +81,6 @@ app.config.update(dict(
 ))
 app.config.from_envvar('HUM271_SETTINGS', silent=True)
 
-
-def connect_db():
-    """Connects to the specific database."""
-    rv = sqlite3.connect(app.config['DATABASE'])
-    rv.row_factory = sqlite3.Row
-    return rv
-
-
-def init_db():
-    """Initializes the database."""
-    db = get_db()
-    with app.open_resource('schema.sql', mode='r') as f:
-        db.cursor().executescript(f.read())
-    db.commit()
-
-
-@app.cli.command('initdb')
-def initdb_command():
-    """Creates the database tables."""
-    init_db()
-    print('Initialized the database.')
-
-
-def get_db():
-    """Opens a new database connection if there is none yet for the
-    current application context.
-    """
-    if not hasattr(g, 'sqlite_db'):
-        g.sqlite_db = connect_db()
-    return g.sqlite_db
-
-
-@app.teardown_appcontext
-def close_db(error):
-    """Closes the database again at the end of the request."""
-    if hasattr(g, 'sqlite_db'):
-        g.sqlite_db.close()
-
 @app.route('/', methods=['GET'])
 def main():
   return render_template('main.html')
@@ -148,7 +111,7 @@ def bluesky():
   all_posts: dict[str, str] = {} 
   # Key: Handle of the user in question
   # Value: Handle of the followed user 
-  all_follows: dict[str, str] = {}
+  all_follows: dict[str, item] = {}
   for actor in range(b_actors_params.get('limit')): # type: ignore
     # Here, we traverse the thing by actor.
     # We separate actors' at-identifiers (did) from the json first. 
@@ -180,18 +143,17 @@ def bluesky():
       follows_response: requests.Response = requests.get(
          follows_endpoint, follows_params  
       )
-      all_follows[identifier] = follows_response.json().get('follows')[0].get('handle')
-  # Now we extract from the dict of posts we just got. 
+      # Insert an item.
+      insertion: item = utility.classes.ret()
+      insertion.data = follows_response.json().get('follows')[0].get('did')
+      insertion.platform = 'bluesky'
+      insertion.did = identifier
+      all_follows[identifier] = insertion 
   # We gather all of the columns for the CSV at this point.
   # Those four columns were (1) actor, (2) gender, (2) perceived audience, (3) Perceived opinion.
   # We create four variables now, each of which represents a column
-
   for i in range(b_actors_params.get('limit')): # type: ignore
-    # the 'displayName' key is not required. 
-    if (actors.json().get('actors')[i].get("displayName") is not None):
-      users.append(actors.json().get('actors')[i].get('displayName'))
-    else:
-      users.append('none') 
+    users.append(actors.json().get('actors')[i].get('did'))
     # The 'pronouns' key is not required.
     if (actors.json().get('actors')[i].get('pronouns') is not None):
       genders.append(actors.json().get('actors')[i].get('pronouns'))
@@ -208,7 +170,7 @@ def bluesky():
     db.execute("INSERT INTO bluesky (user, gender, follows, text) VALUES (?, ?, ?, ?)",
               [users[row], genders[row], follows[row], text[row]])
     db.commit()
-  return render_template('bluesky.html', users=users, genders=genders, follows=follows, text=text)
+  return render_template('bluesky.html')
 
 @app.route('/x', methods=['POST'])
 def x():
@@ -228,7 +190,6 @@ def x():
   # We insert the response data we got above - before creating the app - here.
   # The 'follows' is a list of user id.
   follows: list[str] = [] 
-  print(x_follows_response.json())
   if (len(x_follows_response.json().get('following')) > 0):
     follows.append(x_follows_response.json().get('following')[0].get('user_id'))
   text: list[str] = []
@@ -242,7 +203,7 @@ def x():
       db.commit()
     except IndexError:
        pass
-  return render_template('x.html', users=users, genders=genders, follows=follows, text=text)
+  return render_template('x.html')
 
 @app.route('/pornhub', methods=['POST'])
 def pornhub():
@@ -273,4 +234,4 @@ def pornhub():
     db.execute('INSERT INTO pornhub (title, tag) VALUES (?, ?)',
               [text[i], tags[0]])
     db.commit()
-  return render_template('pornhub.html', tags=tags, text=text)
+  return render_template('pornhub.html')
