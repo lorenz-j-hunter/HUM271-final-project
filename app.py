@@ -1,4 +1,4 @@
-from flask import Flask, render_template
+from flask import Flask, render_template # pyright: ignore[reportMissingImports]
 import requests # pyright: ignore[reportMissingModuleSource]
 import os, random
 from utility.db_commands import get_db
@@ -37,7 +37,7 @@ actors: requests.Response = requests.get(
 
 "Global API responses for X."
 x_users_url = "https://twitter-api45.p.rapidapi.com/screenname.php"
-# Get 100 random users.
+# Get 100 random users. This is one-dimensional.
 rest_ids: list[int] = []
 x_length = 100
 for i in range(x_length):
@@ -50,16 +50,16 @@ for i in range(x_length):
     "x-rapidapi-host": "twitter-api45.p.rapidapi.com",
     "Content-Type": "application/json"
   }
-  # The user info.
+  # The user info, stored as responses. 
   x_users_responses.append(requests.get(x_users_url, headers=x_users_headers, params=x_users_querystring))
 
 screennames: list[str] = []
 for i in range(x_length):
   screennames.append(x_users_responses[i].json().get('profile'))
 
-# now we get follow data.
+# now we get follow data. It is two-dimensional.
 x_follows_responses: list[requests.Response] = []
-x_post_responses: list[requests.Response] = []
+x_post_responses: list[list[requests.Response]] = []
 for i in range(x_length):
   x_follows_url = "https://twitter-api45.p.rapidapi.com/following.php"
   x_follows_querystring = {"screenname":screennames[i]}
@@ -70,18 +70,23 @@ for i in range(x_length):
   }
   x_follows_responses.append(requests.get(x_follows_url, headers=x_follows_headers, params=x_follows_querystring))
 
-  # now we get post data.
-  x_post_url = "https://twitter-api45.p.rapidapi.com/tweet.php"
-  x_post_querystring = {"id":rest_ids[i]}
-  x_post_headers = {
-    "x-rapidapi-key": get_auth('x_authorization.txt'),
-    "x-rapidapi-host": "twitter-api45.p.rapidapi.com",
-    "Content-Type": "application/json"
-  }
-  x_post_responses.append(requests.get(x_post_url, headers=x_post_headers, params=x_post_querystring))
+  # now we get post data. It's also two-dimensional.
+  # We put it in this second for loop because it gives you
+  # 'x_length' posts from the user in outside scope.
+  user_posts: list[requests.Response] = []
+  for e in range(x_length):
+    x_post_url = "https://twitter-api45.p.rapidapi.com/tweet.php"
+    x_post_querystring = {"id":rest_ids[i]}
+    x_post_headers = {
+      "x-rapidapi-key": get_auth('x_authorization.txt'),
+      "x-rapidapi-host": "twitter-api45.p.rapidapi.com",
+      "Content-Type": "application/json"
+    }
+    user_posts.append(requests.get(x_post_url, headers=x_post_headers, params=x_post_querystring))
+  x_post_responses.append(user_posts)
 
 # In conclusion, we now have (1) a list of responses for users, (2) a list of responses for follows,
-# (3) a list of responses for posts. 
+# (3) a list of responses for posts. This all is for X. 
 
 """Global API responses for Pornhub."""
 url = "https://pornhub2.p.rapidapi.com/v2/video_by_id"
@@ -157,10 +162,12 @@ def bluesky():
         posts_endpoint, posts_params 
       )
       # insert an item.
-      insertion: item = item()
-      insertion.data = post_response.json().get('posts')[0].get('uri')
-      insertion.platform = 'bluesky'
-      insertion.did = identifier
+      insertion: item = item({
+        'data' : post_response.json().get('posts')[0].get('uri'),
+        'did' : identifier,
+        'platform' : 'bluesky',
+        'type' : 'posts'
+      })
       all_posts[identifier] = insertion 
       # Now here we gather all follow data.
       # These are inserted into a dictionary called 'all_follows', which
@@ -175,10 +182,12 @@ def bluesky():
          follows_endpoint, follows_params  
       )
       # Insert an item.
-      insertion: item = item()
-      insertion.data = follows_response.json().get('follows')[0].get('did')
-      insertion.platform = 'bluesky'
-      insertion.did = identifier
+      insertion: item = item({
+        'data' : follows_response.json().get('follows')[0].get('did'),
+        'did' : identifier,
+        'platform' : 'bluesky',
+        'type' : 'follows'
+      })
       all_follows[identifier] = insertion 
   # We gather all of the columns for the CSV at this point.
   # Those four columns were (1) actor, (2) gender, (2) perceived audience, (3) Perceived opinion.
@@ -205,22 +214,24 @@ def bluesky():
   # does not need a third dimension unlike 'posts' and 'follows'. 
   with get_db() as db:
     for i in range(bluesky_length): # assume all of these lists are the same length
-      insertion: item = item() 
-      insertion.data = actors.json().get('actors')[i].get('displayName')
-      insertion.did = actors.json().get('actors')[i].get('did') 
-      insertion.platform = 'bluesky'
-      insertion.type = 'user'
-      db.execute('INSERT INTO second_dim_for_bluesky (col_head_users) VALUES (?)', utility.classes.to_string(insertion))
-      db.execute('INSERT INTO second_dim_for_bluesky (col_head_follows) VALUES (?)', utility.classes.to_string(all_follows[identifiers[i]]))
-      db.execute('INSERT INTO second_dim_for_bluesky (col_head_posts) VALUES (?)', utility.classes.to_string(all_posts[identifiers[i]]))
+      insertion: item = item({
+        'data' : actors.json().get('actors')[i].get('displayName'),
+        'did' : actors.json().get('actors')[i].get('did'),
+        'platform' : 'bluesky',
+        'type' : 'user'
+      }) 
+      db.execute('INSERT INTO first_dim_for_bluesky (col_head_users) VALUES (?)', str(insertion))
+      db.execute('INSERT INTO first_dim_for_bluesky (col_head_follows) VALUES (?)', str(all_follows[identifiers[i]]))
+      db.execute('INSERT INTO first_dim_for_bluesky (col_head_posts) VALUES (?)', str(all_posts[identifiers[i]]))
       db.commit()
     for i in range(bluesky_length):
-      insertion: item = item() 
-      insertion.data = actors.json().get('actors')[i].get('pronouns')
-      insertion.did = actors.json().get('actors')[i].get('did') 
-      insertion.platform = 'bluesky'
-      insertion.type = 'user'
-      db.execute('INSERT INTO second_dim_for_bluesky (col_head_genders) VALUES (?)', utility.classes.to_string(insertion))
+      insertion: item = item({
+        'data' : actors.json().get('actors')[i].get('pronouns'),
+        'did' : actors.json().get('actors')[i].get('did'),
+        'platform' : 'bluesky',
+        'type' : 'user'
+      }) 
+      db.execute('INSERT INTO first_dim_for_bluesky (col_head_genders) VALUES (?)', str(insertion))
 
   return render_template('bluesky.html')
 
@@ -234,40 +245,74 @@ def x():
     want to operate on it.
   """
   # We have a list of (1) user responses, (2) follows responses, and (3) post responses from above.
+  # Now, we (1) create item objects of them, (2) store them in lists, (3) put them in the database.
+  # We also add to the second dimension if necessary.
+  #
+  # So we begin right here with creating item objects and storing those in lists. 
   users: list[item] = []
   follows: list[item] = []
   posts: list[item] = []
   for i in range(len(x_users_responses)):
-    insertion: item = item()
-    insertion.data = x_users_responses[i].json().get('name')
-    insertion.did = x_users_responses[i].json().get('rest_id')
-    insertion.platform = 'x'
-    insertion.type = 'user'
+    # Here for users. 
+    insertion: item = item({
+      'data' : x_users_responses[i].json().get('name'),
+      'did' : x_users_responses[i].json().get('rest_id'),
+      'platform' : 'x',
+      'type' : 'user'
+    })
     users.append(insertion)
+  # Here for follows:
   for i in range(len(x_follows_responses)):
-    insertion: item = item()
-    # Okay, this here is a list 
-    # Here, we have just provided a reference to the data.
-    # Then, you can insert every one of the list elements
-    # into a database. 
-    insertion.data = 'list_' + str(i)
-    insertion.did = x_users_responses[i].json().get('rest_id')
-    insertion.platform = 'x'
-    insertion.type = 'follows'
+    insertion: item = item({
+      'data' : 'list_head', # We add a second dimention for this. 
+      'did' : x_users_responses[i].json().get('rest_id'),
+      'platform' : 'x',
+      'type' : 'follows'
+    })
     follows.append(insertion)
-  for i in range(len(x_post_responses)):
-    insertion: item = item()
-    insertion.data = 'list_' + str(i)
-    insertion.did = x_users_responses[i].json().get('rest_id')
-    insertion.platform = 'x'
-    insertion.type = 'follows'
+  # Here for posts:
+  for i in range(x_length):
+    insertion: item = item({
+      'data' : 'list_head', # We add a second dimension for this. 
+      'did' : x_users_responses[i].json().get('rest_id'),
+      'platform' : 'x',
+      'type' : 'posts'
+    })
     posts.append(insertion)
+  # Here, we add to the first dimention for all columns.
+  # All of these lists are the same length, so we do not have to try
+  # and except errors. 
+  # If we do get a null response from the API, that is just logged into the insertion.
   with get_db() as db:
-    for i in range(x_length): # assume all of these lists are the same length
-      db.execute('INSERT INTO second_dim_for_x (col_head_users) VALUES (?)', utility.classes.to_string(users[i]))
-      db.execute('INSERT INTO second_dim_for_x (col_head_follows) VALUES (?)', utility.classes.to_string(follows[i]))
-      db.execute('INSERT INTO second_dim_for_x (col_head_posts) VALUES (?)', utility.classes.to_string(posts[i]))
+    for i in range(x_length): 
+      db.execute('INSERT INTO first_dim_for_x (col_head_users) VALUES (?)', str(users[i]))
+      db.execute('INSERT INTO first_dim_for_x (col_head_follows) VALUES (?)', str(follows[i]))
+      db.execute('INSERT INTO first_dim_for_x (col_head_posts) VALUES (?)', str(posts[i]))
       db.commit()
+    # Now, we add to the second dimention. This is only for 'follows' and 'posts'.
+    # This is for follows:
+    for i in range(x_length):
+      followed: list[dict[int, str]] = x_follows_responses[i].json().get('following')
+      for follow in followed:
+        insertion: item = item({
+          'data' : follow.get('screen_name'), # type: ignore
+          'did' : follow.get('user_id'), # type: ignore
+          'platform' : 'x',
+          'type' : 'follows'
+        })
+        db.execute('INSERT INTO second_dim_for_x (col_len_follows) VALUES (?)', str(insertion))
+        db.commit()
+    # and this is for posts:
+    for i in range(x_length):
+      for e in range(x_length): # x_length happens to also be the limit for posts.
+        insertion: item = item({
+          'data' : x_post_responses[i][e].json().get('text'),
+          'did' : str(users[i]).split('_')[1], # We stored the ID of the user in the column head. 
+          'platform' : 'x',
+          'type' : 'posts'
+        })
+        db.execute('INSERT INTO second_dim_for_x (col_len_posts) VALUES (?)', str(insertion))
+        db.commit()
   return render_template('x.html')
 
 @app.route('/pornhub', methods=['POST'])
@@ -287,33 +332,45 @@ def pornhub():
   # With that, we can compare data like title interpretations for 'perceived opinion',
   # quantity of one video group with quantity of another video group. 
   tags: list[item] = []
+  actual_tags: list[item] = []
   title_text: list[item] = []
   for i in range(pornhub_length):
     raw: list[dict[str, str]] = pornhub_responses[i].json().get('data').get('video').get('tags')
     string_list: list[str] = []
     for element in raw:
       string_list.append(element.get('tag_name')) # pyright: ignore[reportArgumentType]
-    insertion: item = item()
-    insertion.data = string_list[0]     # this is arbitrary. We would open the third dimension here. 
-    insertion.did = 'none'
-    insertion.platform = 'pornhub'
-    insertion.type = 'tags'
+      insertion: item = item({
+        'data' : element.get('tag_name', 'none'),
+        'did' : 'none',
+        'platform' : 'pornhub',
+        'type' : 'tags'
+      })
+      actual_tags.append(insertion)
+    insertion: item = item({
+      'data' : 'head',
+      'did' : 'none',
+      'platform' : 'pornhub',
+      'type' : 'tags' 
+    })
     tags.append(insertion)
 
-    insertion: item = item()
-    insertion.data = pornhub_responses[i].json().get('data').get('video').get('title') 
-    insertion.did = 'none'
-    insertion.platform = 'pornhub'
-    insertion.type = 'title text'
+    insertion: item = item({
+      'data' : pornhub_responses[i].json().get('data').get('video').get('title'),
+      'did' : 'none',
+      'platform' : 'pornhub',
+      'type' : 'title text'
+    })
     title_text.append(insertion)
   # Finally, we add these to the database.
-  # We only add one tag per video, as this version currently does not
-  # support more than 2 dimensions in the DB. 
+  # We open the tables for both dimensions, as 'tags' has a second dimension.
   with get_db() as db:
     for i in range(pornhub_length):
-      db.execute('INSERT INTO second_dim_for_pornhub (col_head_tags) VALUES (?)',
-                [tags[i]])
-      db.execute('INSERT INTO second_dim_for_pornhub (col_head_title_text) VALUES (?)',
-                [title_text[i]])
+      db.execute('INSERT INTO first_dim_for_pornhub (col_head_tags) VALUES (?)',
+                [str(tags[i])])
+      db.execute('INSERT INTO first_dim_for_pornhub (col_head_title_text) VALUES (?)',
+                [str(title_text[i])])
       db.commit()
+    for i in range(len(actual_tags)):
+      db.execute('INSERTO INTO second_dim_for_pornhub (col_len_tags) VALUES (?)',
+                [str(actual_tags[i])])
   return render_template('pornhub.html')
