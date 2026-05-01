@@ -286,17 +286,34 @@ def pornhub():
   # watch.
   # With that, we can compare data like title interpretations for 'perceived opinion',
   # quantity of one video group with quantity of another video group. 
-  pre_tags: list[dict[str, str]] = pornhub_responses[0].json().get('data').get('video').get('tags')
-  tags: list[list[str]] = []
-  for tag in pre_tags:
-    tags.append(tag.get('tag_name')) # pyright: ignore[reportArgumentType]
-  text: list[str] = pornhub_responses[0].json().get('data').get('video').get('title') 
+  tags: list[item] = []
+  title_text: list[item] = []
+  for i in range(pornhub_length):
+    raw: list[dict[str, str]] = pornhub_responses[i].json().get('data').get('video').get('tags')
+    string_list: list[str] = []
+    for element in raw:
+      string_list.append(element.get('tag_name')) # pyright: ignore[reportArgumentType]
+    insertion: item = item()
+    insertion.data = string_list[0]     # this is arbitrary. We would open the third dimension here. 
+    insertion.did = 'none'
+    insertion.platform = 'pornhub'
+    insertion.type = 'tags'
+    tags.append(insertion)
+
+    insertion: item = item()
+    insertion.data = pornhub_responses[i].json().get('data').get('video').get('title') 
+    insertion.did = 'none'
+    insertion.platform = 'pornhub'
+    insertion.type = 'title text'
+    title_text.append(insertion)
   # Finally, we add these to the database.
   # We only add one tag per video, as this version currently does not
   # support more than 2 dimensions in the DB. 
-  db = get_db()
-  for i in range(len(tags)):
-    db.execute('INSERT INTO pornhub (title, tag) VALUES (?, ?)',
-              [text[i], tags[0]])
-    db.commit()
+  with get_db() as db:
+    for i in range(pornhub_length):
+      db.execute('INSERT INTO second_dim_for_pornhub (col_head_tags) VALUES (?)',
+                [tags[i]])
+      db.execute('INSERT INTO second_dim_for_pornhub (col_head_title_text) VALUES (?)',
+                [title_text[i]])
+      db.commit()
   return render_template('pornhub.html')
