@@ -1,24 +1,12 @@
-from flask import Flask, render_template # pyright: ignore[reportMissingImports]
-import requests # pyright: ignore[reportMissingModuleSource]
+import requests  # pyright: ignore[reportMissingModuleSource]
 import os, random
-from utility.db_commands import get_db
 from utility.classes import item
-import utility.classes
-import random, string
+import random
+from sqlite3 import dbapi2 as sqlite3
+from flask import g 
+from flask import Flask, render_template 
+from utility.utilities import get_auth, make_token
 
-def get_auth(location: str) -> str:
-  """Get an auth token or key from a hidden file."""
-  with open(os.path.relpath("authorization/"+location, 'r')) as auth_file:
-    ret: str = auth_file.read() 
-    return ret
-  return None
-
-
-def make_token():
-    """A token maker for the Pornhub API only.
-    Made by Copilot 2026."""
-    alphabet = string.digits + string.ascii_lowercase
-    return ''.join(random.choice(alphabet) for _ in range(15))
 
 
 """Global API responses for Bluesky."""
@@ -35,56 +23,23 @@ actors: requests.Response = requests.get(
   b_actors_endpoint, b_actors_params
 )
 
-"Global API responses for X."
-x_users_url = "https://twitter-api45.p.rapidapi.com/screenname.php"
-# Get 100 random users. This is one-dimensional.
-rest_ids: list[int] = []
-x_length = 100
-for i in range(x_length):
-  rest_ids.append(random.randrange(1, 999999999))
-x_users_responses: list[requests.Response] = []
-for i in range(x_length):
-  x_users_querystring = {"screenname":"","rest_id":rest_ids[i]} # the id overrides the screenname.
-  x_users_headers = {
-    "x-rapidapi-key": get_auth('x_authorization.txt'),
-    "x-rapidapi-host": "twitter-api45.p.rapidapi.com",
-    "Content-Type": "application/json"
-  }
-  # The user info, stored as responses. 
-  x_users_responses.append(requests.get(x_users_url, headers=x_users_headers, params=x_users_querystring))
 
-screennames: list[str] = []
-for i in range(x_length):
-  screennames.append(x_users_responses[i].json().get('profile'))
+"""Global API responses for X."""
+x_posts_url = "https://api.x.com/2/tweets/search/all"
 
-# now we get follow data. It is two-dimensional.
-x_follows_responses: list[requests.Response] = []
-x_post_responses: list[list[requests.Response]] = []
-for i in range(x_length):
-  x_follows_url = "https://twitter-api45.p.rapidapi.com/following.php"
-  x_follows_querystring = {"screenname":screennames[i]}
-  x_follows_headers = {
-    "x-rapidapi-key": get_auth('x_authorization.txt'),
-    "x-rapidapi-host": "twitter-api45.p.rapidapi.com",
-    "Content-Type": "application/json"
-  }
-  x_follows_responses.append(requests.get(x_follows_url, headers=x_follows_headers, params=x_follows_querystring))
+x_posts_headers = {"Authorization": f"Bearer {get_auth('x_bearer_token.txt')}"}
 
-  # now we get post data. It's also two-dimensional.
-  # We put it in this second for loop because it gives you
-  # 'x_length' posts from the user in outside scope.
-  user_posts: list[requests.Response] = []
-  for e in range(x_length):
-    x_post_url = "https://twitter-api45.p.rapidapi.com/tweet.php"
-    x_post_querystring = {"id":rest_ids[i]}
-    x_post_headers = {
-      "x-rapidapi-key": get_auth('x_authorization.txt'),
-      "x-rapidapi-host": "twitter-api45.p.rapidapi.com",
-      "Content-Type": "application/json"
-    }
-    user_posts.append(requests.get(x_post_url, headers=x_post_headers, params=x_post_querystring))
-  x_post_responses.append(user_posts)
+x_posts_params = {
+    "query": "lang:en a e i o u",
+    "start_time": "2020-01-01T00:00:00Z",
+    "end_time": "2026-01-01T00:00:00Z",
+    "max_results": 100
+}
 
+
+x_posts_response = requests.get(x_posts_url, headers=x_posts_headers, params=x_posts_params)
+
+print(x_posts_response.text)
 # In conclusion, we now have (1) a list of responses for users, (2) a list of responses for follows,
 # (3) a list of responses for posts. This all is for X. 
 
@@ -101,9 +56,52 @@ for i in range(pornhub_length):
     "Content-Type": "application/json"
   }
   pornhub_responses.append(requests.get(url, headers=headers, params=querystring))
+try:
+  assert pornhub_responses[0].status_code == 200
+except AssertionError:
+  print(f"pornhub_responses[0].status_code == {pornhub_responses[0].status_code}") 
 
 
+"""Create the app and make db commands."""
 app = Flask(__name__)
+
+def connect_db():
+    """Connects to the specific database."""
+    rv = sqlite3.connect(app.config['DATABASE'])
+    rv.row_factory = sqlite3.Row
+    return rv
+
+
+def init_db():
+    """Initializes the database."""
+    db = get_db()
+    with app.open_resource('schema.sql', mode='r') as f:
+        db.cursor().executescript(f.read())
+    db.commit()
+
+
+@app.cli.command('initdb')
+def initdb_command():
+    """Creates the database tables."""
+    init_db()
+    print('Initialized all databases.')
+
+
+def get_db():
+    """Opens a new database connection if there is none yet for the
+    current application context.
+    """
+    if not hasattr(g, 'sqlite_db'):
+        g.sqlite_db = connect_db()
+    return g.sqlite_db
+
+
+@app.teardown_appcontext
+def close_db(error):
+    """Closes the database again at the end of the request."""
+    if hasattr(g, 'sqlite_db'):
+        g.sqlite_db.close()
+
 
 # Load default config and override config from an environment variable
 app.config.update(dict(
@@ -125,24 +123,19 @@ def bluesky():
     raw data is also stored in a database should a developer
     want to operate on it.
   """
-  # These are our return values. Each represent a column of the CSV we want to create with this
-  # function.
-  # We also include 'identifiers'. This is the DID of users in question. It is used later.
-  users: list[str] = []
-  genders: list[str] = []
-  follows: list[item] = []
-  text: list[item] = []
-  # This is a list of handles of users. 
+  # This (identifiers) is a list of handles of users.
+  # On same dimension as 'bluesky_length' but not for 'follows_limit'.
   identifiers: list[str] = []
-  # Now that we have a list of actors from global, we can search their feeds locally.
   posts_endpoint: str = "https://api.bsky.app/xrpc/app.bsky.feed.searchPosts"
   follows_endpoint: str = "https://api.bsky.app/xrpc/app.bsky.graph.getFollows"
   # Key: Handle of user in question
   # Value: URI of text from post.
-  all_posts: dict[str, item] = {} 
+  all_posts: dict[str, list[item]] = {} 
   # Key: Handle of the user in question
-  # Value: Handle of the followed user 
-  all_follows: dict[str, item] = {}
+  # Value: List of handles of follows.  
+  all_follows: dict[str, list[item]] = {}
+  follows_limit: int = 100
+  posts_limit: int = 100
   for actor in range(bluesky_limit): # type: ignore
     # Here, we traverse the thing by actor.
     # We separate actors' at-identifiers (did) from the json first. 
@@ -151,68 +144,53 @@ def bluesky():
     # Here, we gather all post data. 
     # It is stored in a dict; the DID of the user in question is
     # the key and the corresponding *list* of posts is the value.
-    # We limit the number of posts to 5.
     for identifier in identifiers:
       posts_params: dict[str, str | int] = {
         "q" : "a",
         "author" : identifier,
-        'limit' : 1 
+        'limit' : posts_limit 
       }
       post_response: requests.Response = requests.get(
         posts_endpoint, posts_params 
       )
-      # insert an item.
-      insertion: item = item({
-        'data' : post_response.json().get('posts')[0].get('uri'),
-        'did' : identifier,
-        'platform' : 'bluesky',
-        'type' : 'posts'
-      })
-      all_posts[identifier] = insertion 
+      insertion_list: list[item] = []
+      for i in range(posts_limit):
+        # insert an item.
+        insertion: item = item({
+          'data' : post_response.json().get('posts')[i].get('uri'),
+          'did' : identifier,
+          'platform' : 'bluesky',
+          'type' : 'posts'
+        })
+        insertion_list.append(insertion)
+      all_posts[identifier] = insertion_list
       # Now here we gather all follow data.
       # These are inserted into a dictionary called 'all_follows', which
       # has as it's key the handle and as a value the list of all follows
       # (their handles).
-      # We limit the number of follows to 1.
       follows_params: dict[str, str | int] = {
         "actor" : identifier,
-        "limit" : 1 
+        "limit" : follows_limit 
       } 
       follows_response: requests.Response = requests.get(
          follows_endpoint, follows_params  
       )
       # Insert an item.
-      insertion: item = item({
-        'data' : follows_response.json().get('follows')[0].get('did'),
-        'did' : identifier,
-        'platform' : 'bluesky',
-        'type' : 'follows'
-      })
-      all_follows[identifier] = insertion 
-  # We gather all of the columns for the CSV at this point.
-  # Those four columns were (1) actor, (2) gender, (2) perceived audience, (3) Perceived opinion.
-  # We create four variables now, each of which represents a column
-  for i in range(b_actors_params.get('limit')): # type: ignore
-    users.append(actors.json().get('actors')[i].get('did'))
-    # The 'pronouns' key is not required.
-    if (actors.json().get('actors')[i].get('pronouns') is not None):
-      genders.append(actors.json().get('actors')[i].get('pronouns'))
-    else:
-      genders.append('none')
-  for identifier in identifiers:
-    follows.append(all_follows[identifier])
-    text.append(all_posts[identifier])
+      insertion_list: list[item] = []
+      for i in range(follows_limit):
+        insertion: item = item({
+          'data' : follows_response.json().get('follows')[i].get('did'),
+          'did' : identifier,
+          'platform' : 'bluesky',
+          'type' : 'follows'
+        })
+        insertion_list.append(insertion)
+      all_follows[identifier] = insertion_list 
   # Finally, we add these columns to a database.
   # It's in the database that the data will be operated on
   # to find refined things like 'perceived opinion'.
-  #
-  # We create 'insertions' instead of putting raw data.
-  # This is important for the backend workings of the 3D database.
-  # 
-  # Because the users response was fetched outside of the function, we 
-  # create the insertion for it here. We do the same for 'genders', which
-  # does not need a third dimension unlike 'posts' and 'follows'. 
   with get_db() as db:
+    # We first insert to the first dimension here, then move onto the second dimension.
     for i in range(bluesky_length): # assume all of these lists are the same length
       insertion: item = item({
         'data' : actors.json().get('actors')[i].get('displayName'),
@@ -221,18 +199,19 @@ def bluesky():
         'type' : 'user'
       }) 
       db.execute('INSERT INTO first_dim_for_bluesky (col_head_users) VALUES (?)', str(insertion))
-      db.execute('INSERT INTO first_dim_for_bluesky (col_head_follows) VALUES (?)', str(all_follows[identifiers[i]]))
-      db.execute('INSERT INTO first_dim_for_bluesky (col_head_posts) VALUES (?)', str(all_posts[identifiers[i]]))
+      db.execute('INSERT INTO first_dim_for_bluesky (col_head_follows) VALUES (?)', 'head')
+      db.execute('INSERT INTO first_dim_for_bluesky (col_head_posts) VALUES (?)', 'head')
       db.commit()
-    for i in range(bluesky_length):
-      insertion: item = item({
-        'data' : actors.json().get('actors')[i].get('pronouns'),
-        'did' : actors.json().get('actors')[i].get('did'),
-        'platform' : 'bluesky',
-        'type' : 'user'
-      }) 
-      db.execute('INSERT INTO first_dim_for_bluesky (col_head_genders) VALUES (?)', str(insertion))
-
+      # Now we add to the second dimension for follows. 
+      insertion_list: list[item] = all_follows[identifiers[i]]
+      for i in range(follows_limit):
+        db.execute('INSERT INTO second_dim_for_bluesky (col_len_follows) VALUES (?)', str(insertion_list[i]))
+        db.commit()
+      # now we add to the second dimension for posts.
+      insertion_list: list[item] = all_posts[identifiers[i]]
+      for i in range(posts_limit):
+        db.execute('INSERT INTO second_dim_for_bluesky (col_len_posts) VALUES (?)', str(insertion_list[i]))
+        db.commit()     
   return render_template('bluesky.html')
 
 @app.route('/x', methods=['POST'])
@@ -374,3 +353,4 @@ def pornhub():
       db.execute('INSERTO INTO second_dim_for_pornhub (col_len_tags) VALUES (?)',
                 [str(actual_tags[i])])
   return render_template('pornhub.html')
+
