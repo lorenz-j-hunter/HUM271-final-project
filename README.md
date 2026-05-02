@@ -27,7 +27,7 @@ As a last word, the political polarization seen in recent years seems to have co
 in a number of metrics. The macho ethnonationalism seen in Republican rallies appeals to men only.
 In society, we sanctify democracy and generally assume there is nothing wrong with it in principle.
 But can it solve a crisis like this? With the results of this study, we hope to reaffirm the importance of 
-standing up to women's rights while also constructively criticizing their rise to power.
+standing up to women's rights while also considering ways to improve the situation.
 We believe there is a third way not just for the political arena, but for relations between men and women.
 
 ### Goal
