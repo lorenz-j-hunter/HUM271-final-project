@@ -19,8 +19,8 @@ than them.
 
 However, we question this point of view anyway. We assert that women's perceptions of masculinity and the way
 they conceptualize certain cohorts of men do represent, or at least seem like, anger to the target populations.
-It follows that these would women's image to men in society, affecting culture.
-However, it would be immoral to simply believe this without offering some justification. That is why we conduct
+We claim that a cohort of men view women in a worse light because of this, affecting culture.
+However, it would be wrong to believe this without offering some justification. That is why we conduct
 a study of public opinion to see if this assertion is true.
 
 As a last word, the political polarization seen in recent years seems to have coincided with women's outperformance
