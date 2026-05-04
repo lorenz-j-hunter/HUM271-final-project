@@ -1,47 +1,116 @@
-import requests  # pyright: ignore[reportMissingModuleSource]
-import os, random
+import os, time, requests  # pyright: ignore[reportMissingModuleSource]
 from utility.classes import item
-import random
 from sqlite3 import dbapi2 as sqlite3
-from flask import g 
-from flask import Flask, render_template 
+from flask import Flask, render_template, g
 from utility.utilities import get_auth, make_token
 
 
-
 """Global API responses for Bluesky."""
-# We use 'actors' to get a query of said actor's feed. 
-b_actors_endpoint = "https://public.api.bsky.app/xrpc/app.bsky.actor.searchActors"
-# All endpoint parameters used.
-bluesky_length: int = 5
-b_actors_params: dict[str, str | int] = {
-  "q" : "a", # keep the query down to one vowel to maximize the search results. 
-  "limit" : bluesky_length 
-}
-# The responses created with these endpoints and their parameters.
-actors: requests.Response = requests.get(
-  b_actors_endpoint, b_actors_params
-)
+def get_bluesky() -> requests.Response:
+  # We use 'actors' to get a query of said actor's feed. 
+  b_actors_endpoint = "https://public.api.bsky.app/xrpc/app.bsky.actor.searchActors"
+  # All endpoint parameters used.
+  bluesky_length: int = 5
+  b_actors_params: dict[str, str | int] = {
+    "q" : "a", # keep the query down to one vowel to maximize the search results. 
+    "limit" : bluesky_length 
+  }
+  # The responses created with these endpoints and their parameters.
+  actors: requests.Response = requests.get(
+    b_actors_endpoint, b_actors_params
+  )
+  return actors
 
 
 """Global API responses for X."""
-x_posts_url = "https://api.x.com/2/tweets/search/all"
+def get_x() -> list[list[str] | dict[str, str] | dict[str, list]]:
+  # Just so you know, we only get these in order to get author ids. 
+  x_posts_url = "https://api.x.com/2/tweets/search/all"
 
-x_posts_headers = {"Authorization": f"Bearer {get_auth('x_bearer_token.txt')}"}
+  x_posts_headers = {"Authorization": f"Bearer {get_auth('x_bearer_token.txt')}"}
 
-x_posts_params = {
+  x_posts_params = {
     "query": "lang:en a e i o u",
     "start_time": "2020-01-01T00:00:00Z",
     "end_time": "2026-01-01T00:00:00Z",
-    "max_results": 100
-}
+    "max_results": 10,
+    "tweet.fields": ['author_id'],
+    "user.fields": ['username']
+  }
+
+  x_posts_response = requests.get(x_posts_url, headers=x_posts_headers, params=x_posts_params)
+  print('\nBeginning the X posts response.\n\n', x_posts_response.json(), '\n\n')
+
+  x_user_ids: list[str] = []
+  for post in x_posts_response.json().get('data'):
+    x_user_ids.append(post.get('author_id'))
+
+  # Now, we map the user ids to the usernames that they bear. 
+  # We need to do this before we call requests.
+
+  x_users: dict[str, str] = {}
+  for id in x_user_ids:
+
+    url = f"https://api.x.com/2/users/{id}"
+
+    headers = {"Authorization": f"Bearer {get_auth('x_bearer_token.txt')}"}
+
+    params = {"user.fields": ['username']}
+
+    response = requests.get(url, headers=headers, params=params)
+
+    print('\n\nHere is a response from /2/users/id.\n', response.text, '\n\n')
+
+    x_users[id] = response.json().get('data').get('username')
+
+  # Now, we get follow data.
+  x_follows: dict[str, list[str]] = {}
+  for id in x_user_ids:
+    # Make the request.
+    url = f"https://api.x.com/2/users/{id}/following"
+
+    headers = {"Authorization": f"Bearer {get_auth('x_bearer_token.txt')}"} 
+
+    params = {"max_results": 10}
+
+    response = requests.get(url, headers=headers, params=params)
 
 
-x_posts_response = requests.get(x_posts_url, headers=x_posts_headers, params=x_posts_params)
+    print('\nBeginning the X follows response.\n\n', response.text, '\n\n')
+    # Map it to the user.
+    json_list: list[dict[str, str]] = response.json().get('data')
+    real_list: list[str] = []
+    for element in json_list:
+      real_list.append(element.get('id')) # type: ignore
+    x_follows[id] = real_list
 
-print(x_posts_response.text)
-# In conclusion, we now have (1) a list of responses for users, (2) a list of responses for follows,
-# (3) a list of responses for posts. This all is for X. 
+  # Now, we get a list of posts for each user.
+  x_posts: dict[str, list[str]] = {}
+  for id in x_user_ids:
+    time.sleep(10) # rate limits.
+    # Make the request.
+    url = f"https://api.x.com/2/users/{id}/tweets"
+
+    headers = {"Authorization": f"Bearer {get_auth('x_bearer_token.txt')}"}
+
+    response = requests.get(url, headers=headers)
+
+    print('Beginning the X posts response.\n\n', response.text, '\n\n')
+    # Map it to the user.
+    if response.json().get('data') is None:
+      print("\n\nThe response for an index of x_posts was None. ")
+    else:
+      json_list: list[dict[str, str]] = response.json().get('data')
+      real_list: list[str] = []
+      for element in json_list:
+        real_list.append(element.get('text')) # type: ignore
+      x_posts[id] = real_list
+
+  return [x_user_ids, x_users, x_follows, x_posts] 
+
+  # In conclusion, we now have (1) a list of responses for users, (2) a list of responses for follows,
+  # (3) a list of responses for posts. Those are x_user_ids, x_follows, and x_posts, respectively.
+  # This all is for X. 
 
 """Global API responses for Pornhub."""
 url = "https://pornhub2.p.rapidapi.com/v2/video_by_id"
@@ -223,75 +292,64 @@ def x():
     raw data is also stored in a database should a developer
     want to operate on it.
   """
-  # We have a list of (1) user responses, (2) follows responses, and (3) post responses from above.
+  # We have dictionaries of (1) user responses, (2) follows responses, and (3) post responses from above.
   # Now, we (1) create item objects of them, (2) store them in lists, (3) put them in the database.
   # We also add to the second dimension if necessary.
   #
   # So we begin right here with creating item objects and storing those in lists. 
-  users: list[item] = []
-  follows: list[item] = []
-  posts: list[item] = []
-  for i in range(len(x_users_responses)):
-    # Here for users. 
-    insertion: item = item({
-      'data' : x_users_responses[i].json().get('name'),
-      'did' : x_users_responses[i].json().get('rest_id'),
-      'platform' : 'x',
-      'type' : 'user'
-    })
-    users.append(insertion)
-  # Here for follows:
-  for i in range(len(x_follows_responses)):
-    insertion: item = item({
-      'data' : 'list_head', # We add a second dimention for this. 
-      'did' : x_users_responses[i].json().get('rest_id'),
-      'platform' : 'x',
-      'type' : 'follows'
-    })
-    follows.append(insertion)
-  # Here for posts:
-  for i in range(x_length):
-    insertion: item = item({
-      'data' : 'list_head', # We add a second dimension for this. 
-      'did' : x_users_responses[i].json().get('rest_id'),
-      'platform' : 'x',
-      'type' : 'posts'
-    })
-    posts.append(insertion)
-  # Here, we add to the first dimention for all columns.
-  # All of these lists are the same length, so we do not have to try
-  # and except errors. 
-  # If we do get a null response from the API, that is just logged into the insertion.
   with get_db() as db:
-    for i in range(x_length): 
-      db.execute('INSERT INTO first_dim_for_x (col_head_users) VALUES (?)', str(users[i]))
-      db.execute('INSERT INTO first_dim_for_x (col_head_follows) VALUES (?)', str(follows[i]))
-      db.execute('INSERT INTO first_dim_for_x (col_head_posts) VALUES (?)', str(posts[i]))
+    for user in x_user_ids:
+      insertion: item = item({
+        'data': x_users[user],
+        'did': user,
+        'platform': 'x',
+        'type': 'users'
+      })
+      db.execute('INSERT INTO first_dim_for_x (col_head_users) VALUES (?)',
+                [str(insertion)])
       db.commit()
-    # Now, we add to the second dimention. This is only for 'follows' and 'posts'.
-    # This is for follows:
-    for i in range(x_length):
-      followed: list[dict[int, str]] = x_follows_responses[i].json().get('following')
-      for follow in followed:
+
+      insertion: item = item({
+        'data': 'head',
+        'did': user,
+        'platform': 'x',
+        'type': 'follows'
+      })
+      # If this is the start of a two-dimensional data, then we enter 'head'.
+      db.execute("INSERT INTO first_dim_for_x (col_head_follows) VALUES (?)", [str(insertion)])
+      db.commit()
+      print('\n\n', insertion, '\n\n') 
+
+      insertion: item = item({
+        'data': 'head',
+        'did': user,
+        'platform': 'x',
+        'type': 'posts' 
+      })
+      db.execute("INSERT INTO first_dim_for_x (col_head_posts) VALUES (?)", [str(insertion)])
+      db.commit()
+      print('\n\n', insertion, '\n\n') 
+    # Here we begin adding to the second dimension, starting with follows. 
+    with get_db() as db:
+      for user in x_user_ids:
         insertion: item = item({
-          'data' : follow.get('screen_name'), # type: ignore
-          'did' : follow.get('user_id'), # type: ignore
-          'platform' : 'x',
-          'type' : 'follows'
+          'data': x_follows[user],
+          'did': user,
+          'platform': 'x',
+          'type': 'follows'
         })
-        db.execute('INSERT INTO second_dim_for_x (col_len_follows) VALUES (?)', str(insertion))
+        db.execute("INSERT INTO second_dim_for_x (col_len_follows) VALUES (?)", [str(insertion)])
         db.commit()
-    # and this is for posts:
-    for i in range(x_length):
-      for e in range(x_length): # x_length happens to also be the limit for posts.
+        print('\n\n', insertion, '\n\n') 
         insertion: item = item({
-          'data' : x_post_responses[i][e].json().get('text'),
-          'did' : str(users[i]).split('_')[1], # We stored the ID of the user in the column head. 
-          'platform' : 'x',
-          'type' : 'posts'
+          'data': x_posts[user],
+          'did': user,
+          'platform': 'x',
+          'type': 'posts'
         })
-        db.execute('INSERT INTO second_dim_for_x (col_len_posts) VALUES (?)', str(insertion))
+        db.execute("INSERT INTO second_dim_for_x (col_len_posts) VALUES (?)", [str(insertion)])
         db.commit()
+        print('\n\n', insertion, '\n\n') 
   return render_template('x.html')
 
 @app.route('/pornhub', methods=['POST'])
