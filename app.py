@@ -6,7 +6,7 @@ from utility.utilities import get_auth, make_token
 
 
 """Global API responses for Bluesky."""
-def get_bluesky() -> requests.Response:
+def get_bluesky() -> list[requests.Response | int]:
   # We use 'actors' to get a query of said actor's feed. 
   b_actors_endpoint = "https://public.api.bsky.app/xrpc/app.bsky.actor.searchActors"
   # All endpoint parameters used.
@@ -19,7 +19,7 @@ def get_bluesky() -> requests.Response:
   actors: requests.Response = requests.get(
     b_actors_endpoint, b_actors_params
   )
-  return actors
+  return [bluesky_length, actors]
 
 
 """Global API responses for X."""
@@ -27,7 +27,7 @@ def get_x() -> list[list[str] | dict[str, str] | dict[str, list]]:
   # Just so you know, we only get these in order to get author ids. 
   x_posts_url = "https://api.x.com/2/tweets/search/all"
 
-  x_posts_headers = {"Authorization": f"Bearer {get_auth('x_bearer_token.txt')}"}
+  x_posts_headers = {"Authorization": f"Bearer {os.environ['X_BEARER_TOKEN']}"}
 
   x_posts_params = {
     "query": "lang:en a e i o u",
@@ -53,7 +53,7 @@ def get_x() -> list[list[str] | dict[str, str] | dict[str, list]]:
 
     url = f"https://api.x.com/2/users/{id}"
 
-    headers = {"Authorization": f"Bearer {get_auth('x_bearer_token.txt')}"}
+    headers = {"Authorization": f"Bearer {os.environ['X_BEARER_TOKEN']}"}
 
     params = {"user.fields": ['username']}
 
@@ -68,15 +68,9 @@ def get_x() -> list[list[str] | dict[str, str] | dict[str, list]]:
   for id in x_user_ids:
     # Make the request.
     url = f"https://api.x.com/2/users/{id}/following"
-
-    headers = {"Authorization": f"Bearer {get_auth('x_bearer_token.txt')}"} 
-
+    headers = {"Authorization": f"Bearer {os.environ['X_BEARER_TOKEN']}"} 
     params = {"max_results": 10}
-
     response = requests.get(url, headers=headers, params=params)
-
-
-    print('\nBeginning the X follows response.\n\n', response.text, '\n\n')
     # Map it to the user.
     json_list: list[dict[str, str]] = response.json().get('data')
     real_list: list[str] = []
@@ -91,7 +85,7 @@ def get_x() -> list[list[str] | dict[str, str] | dict[str, list]]:
     # Make the request.
     url = f"https://api.x.com/2/users/{id}/tweets"
 
-    headers = {"Authorization": f"Bearer {get_auth('x_bearer_token.txt')}"}
+    headers = {"Authorization": f"Bearer {os.environ['X_BEARER_TOKEN']}"}
 
     response = requests.get(url, headers=headers)
 
@@ -113,26 +107,35 @@ def get_x() -> list[list[str] | dict[str, str] | dict[str, list]]:
   # This all is for X. 
 
 """Global API responses for Pornhub."""
-url = "https://pornhub2.p.rapidapi.com/v2/video_by_id"
+def get_pornhub() -> list[int | list[requests.Response]]:
+  url = "https://pornhub2.p.rapidapi.com/v2/video_by_id"
 
-pornhub_length = 100
-pornhub_responses: list[requests.Response] = []
-for i in range(pornhub_length):
-  querystring = {"id":make_token(),"thumbsize":"small"}
-  headers = {
-    "x-rapidapi-key": get_auth('pornhub_key.txt'),
-    "x-rapidapi-host": "pornhub2.p.rapidapi.com",
-    "Content-Type": "application/json"
-  }
-  pornhub_responses.append(requests.get(url, headers=headers, params=querystring))
-try:
-  assert pornhub_responses[0].status_code == 200
-except AssertionError:
-  print(f"pornhub_responses[0].status_code == {pornhub_responses[0].status_code}") 
+  pornhub_length = 100
+  pornhub_responses: list[requests.Response] = []
+  for i in range(pornhub_length):
+    querystring = {"id":make_token(),"thumbsize":"small"}
+    headers = {
+      "x-rapidapi-key": get_auth('pornhub_key.txt'),
+      "x-rapidapi-host": "pornhub2.p.rapidapi.com",
+      "Content-Type": "application/json"
+    }
+    pornhub_responses.append(requests.get(url, headers=headers, params=querystring))
+  try:
+    assert pornhub_responses[i].status_code == 200
+  except AssertionError:
+    print(f"pornhub_responses[{i}].status_code == {pornhub_responses[i].status_code}") 
+  return [pornhub_length, pornhub_responses]
 
 
 """Create the app and make db commands."""
 app = Flask(__name__)
+
+# Load default config and override config from an environment variable
+app.config.update(dict(
+    DATABASE=os.path.join(app.root_path, 'database/database.db'),
+    SECRET_KEY=os.environ['SECRET_KEY'],
+))
+app.config.from_envvar('HUM271_SETTINGS', silent=True)
 
 def connect_db():
     """Connects to the specific database."""
@@ -144,7 +147,7 @@ def connect_db():
 def init_db():
     """Initializes the database."""
     db = get_db()
-    with app.open_resource('schema.sql', mode='r') as f:
+    with app.open_resource('database/schema.sql', mode='r') as f:
         db.cursor().executescript(f.read())
     db.commit()
 
@@ -172,12 +175,6 @@ def close_db(error):
         g.sqlite_db.close()
 
 
-# Load default config and override config from an environment variable
-app.config.update(dict(
-    DATABASE=os.path.join(app.root_path, 'database.db'),
-    SECRET_KEY=get_auth('secret_key.txt'),
-))
-app.config.from_envvar('HUM271_SETTINGS', silent=True)
 
 @app.route('/', methods=['GET'])
 def main():
@@ -192,6 +189,9 @@ def bluesky():
     raw data is also stored in a database should a developer
     want to operate on it.
   """
+  package = get_bluesky()
+  bluesky_length: int = package[0] # type: ignore
+  actors: requests.Response = package[1] # type: ignore
   # This (identifiers) is a list of handles of users.
   # On same dimension as 'bluesky_length' but not for 'follows_limit'.
   identifiers: list[str] = []
@@ -205,7 +205,7 @@ def bluesky():
   all_follows: dict[str, list[item]] = {}
   follows_limit: int = 100
   posts_limit: int = 100
-  for actor in range(bluesky_limit): # type: ignore
+  for actor in range(bluesky_length): # type: ignore
     # Here, we traverse the thing by actor.
     # We separate actors' at-identifiers (did) from the json first. 
     for actor in actors.json().get('actors'):
@@ -222,6 +222,9 @@ def bluesky():
       post_response: requests.Response = requests.get(
         posts_endpoint, posts_params 
       )
+      if post_response.status_code == 403: # AppView deliberately returns 403 to reduce load 
+       continue 
+      posts_limit = len(post_response.json().get('posts'))
       insertion_list: list[item] = []
       for i in range(posts_limit):
         # insert an item.
@@ -244,6 +247,7 @@ def bluesky():
       follows_response: requests.Response = requests.get(
          follows_endpoint, follows_params  
       )
+      follows_limit = len(follows_response.json().get('follows'))
       # Insert an item.
       insertion_list: list[item] = []
       for i in range(follows_limit):
@@ -267,20 +271,15 @@ def bluesky():
         'platform' : 'bluesky',
         'type' : 'user'
       }) 
-      db.execute('INSERT INTO first_dim_for_bluesky (col_head_users) VALUES (?)', str(insertion))
-      db.execute('INSERT INTO first_dim_for_bluesky (col_head_follows) VALUES (?)', 'head')
-      db.execute('INSERT INTO first_dim_for_bluesky (col_head_posts) VALUES (?)', 'head')
+      db.execute('INSERT INTO first_dim_for_bluesky (col_head_users, col_head_genders, col_head_follows, col_head_posts) VALUES (?, ?, ?, ?)',
+                [str(insertion), 'head', 'head', 'head'])
       db.commit()
-      # Now we add to the second dimension for follows. 
+      # Now we add to the second dimension for follows and posts. 
       insertion_list: list[item] = all_follows[identifiers[i]]
       for i in range(follows_limit):
-        db.execute('INSERT INTO second_dim_for_bluesky (col_len_follows) VALUES (?)', str(insertion_list[i]))
+        db.execute('INSERT INTO second_dim_for_bluesky (col_len_follows, col_len_posts) VALUES (?, ?)',
+                  [str(all_follows[identifiers[i]]), str(all_posts[identifiers[i]])])
         db.commit()
-      # now we add to the second dimension for posts.
-      insertion_list: list[item] = all_posts[identifiers[i]]
-      for i in range(posts_limit):
-        db.execute('INSERT INTO second_dim_for_bluesky (col_len_posts) VALUES (?)', str(insertion_list[i]))
-        db.commit()     
   return render_template('bluesky.html')
 
 @app.route('/x', methods=['POST'])
@@ -297,59 +296,56 @@ def x():
   # We also add to the second dimension if necessary.
   #
   # So we begin right here with creating item objects and storing those in lists. 
+  package: list = get_x()
+  x_user_ids: list[str] = package[0] # type: ignore
+  x_users: dict[str, str] = package[1] # type: ignore
+  x_follows: dict[str, list] = package[2] # type: ignore
+  x_posts: dict[str, list] = package[3]
   with get_db() as db:
     for user in x_user_ids:
-      insertion: item = item({
-        'data': x_users[user],
+      user_insertion: item = item({
+        'data': x_users[user], 
         'did': user,
         'platform': 'x',
         'type': 'users'
       })
-      db.execute('INSERT INTO first_dim_for_x (col_head_users) VALUES (?)',
-                [str(insertion)])
-      db.commit()
-
-      insertion: item = item({
+      follows_insertion: item = item({
         'data': 'head',
         'did': user,
         'platform': 'x',
         'type': 'follows'
       })
-      # If this is the start of a two-dimensional data, then we enter 'head'.
-      db.execute("INSERT INTO first_dim_for_x (col_head_follows) VALUES (?)", [str(insertion)])
-      db.commit()
-      print('\n\n', insertion, '\n\n') 
-
-      insertion: item = item({
+      posts_insertion: item = item({
         'data': 'head',
         'did': user,
         'platform': 'x',
         'type': 'posts' 
       })
-      db.execute("INSERT INTO first_dim_for_x (col_head_posts) VALUES (?)", [str(insertion)])
+      # Two-dimensional data fields have 'head' as their entry in the first dimension.
+      db.execute('INSERT INTO first_dim_for_x (col_head_users, col_head_follows, col_head_posts) VALUES (?, ?, ?)',
+                [str(user_insertion), str(follows_insertion), str(posts_insertion)])
       db.commit()
-      print('\n\n', insertion, '\n\n') 
     # Here we begin adding to the second dimension, starting with follows. 
     with get_db() as db:
       for user in x_user_ids:
-        insertion: item = item({
-          'data': x_follows[user],
-          'did': user,
-          'platform': 'x',
-          'type': 'follows'
-        })
-        db.execute("INSERT INTO second_dim_for_x (col_len_follows) VALUES (?)", [str(insertion)])
-        db.commit()
-        print('\n\n', insertion, '\n\n') 
-        insertion: item = item({
-          'data': x_posts[user],
-          'did': user,
-          'platform': 'x',
-          'type': 'posts'
-        })
-        db.execute("INSERT INTO second_dim_for_x (col_len_posts) VALUES (?)", [str(insertion)])
-        db.commit()
-        print('\n\n', insertion, '\n\n') 
+        follows_list = x_follows[user]
+        posts_list = x_posts[user]
+        for i in range(max([len(follows_list), len(posts_list)])):
+          follows_insertion: item = item({
+            'data': str(follows_list[i]), # if it is None, it will be put in like that
+            'did': user,
+            'platform': 'x',
+            'type': 'follows'
+          })
+          posts_insertion: item = item({
+            'data': str(posts_list[i]),
+            'did': user,
+            'platform': 'x',
+            'type': 'posts'
+          })
+          db.execute("INSERT INTO second_dim_for_x (col_len_follows, col_len_posts) VALUES (?, ?)",
+                      [str(follows_insertion), str(posts_insertion)])
+          db.commit()
   return render_template('x.html')
 
 @app.route('/pornhub', methods=['POST'])
@@ -361,6 +357,9 @@ def pornhub():
     raw data is also stored in a database should a developer
     want to operate on it.
   """
+  package = get_pornhub()
+  pornhub_length: int = package[0] # type: ignore
+  pornhub_responses: list[requests.Response] = package[1] # type: ignore
   # These are our return values. Each represent a column of the CSV we want to create with this
   # function.
   # Pornhub doesn't have a rich text circulation, so we grab the title and tag.
@@ -371,21 +370,24 @@ def pornhub():
   tags: list[item] = []
   actual_tags: list[item] = []
   title_text: list[item] = []
+  # Traverse all of the fetched videos. Get their tags and titles, then
+  # put those in 'item' objects. 
   for i in range(pornhub_length):
+    time.sleep(5) # the api will send HTTP 429 - 'requests are coming too fast.'
     raw: list[dict[str, str]] = pornhub_responses[i].json().get('data').get('video').get('tags')
     string_list: list[str] = []
     for element in raw:
       string_list.append(element.get('tag_name')) # pyright: ignore[reportArgumentType]
       insertion: item = item({
-        'data' : element.get('tag_name', 'none'),
-        'did' : 'none',
+        'data' : element.get('tag_name', 'None'),
+        'did' : 'None',
         'platform' : 'pornhub',
         'type' : 'tags'
       })
       actual_tags.append(insertion)
     insertion: item = item({
       'data' : 'head',
-      'did' : 'none',
+      'did' : 'None',
       'platform' : 'pornhub',
       'type' : 'tags' 
     })
@@ -393,7 +395,7 @@ def pornhub():
 
     insertion: item = item({
       'data' : pornhub_responses[i].json().get('data').get('video').get('title'),
-      'did' : 'none',
+      'did' : 'None',
       'platform' : 'pornhub',
       'type' : 'title text'
     })
