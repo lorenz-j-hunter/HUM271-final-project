@@ -3,6 +3,7 @@ from utility.classes import item
 from sqlite3 import dbapi2 as sqlite3
 from flask import Flask, render_template, g, request
 from api.responses import get_bluesky, get_x, get_pornhub
+from utility.utilities import get_auth
 
 """Create the app and make db commands."""
 app = Flask(__name__)
@@ -10,7 +11,7 @@ app = Flask(__name__)
 # Load default config and override config from an environment variable
 app.config.update(dict(
     DATABASE=os.path.join(app.root_path, 'database/database.db'),
-    SECRET_KEY=os.environ['SECRET_KEY'],
+    SECRET_KEY=get_auth('secret_key.txt'),
 ))
 app.config.from_envvar('HUM271_SETTINGS', silent=True)
 
@@ -158,6 +159,7 @@ def bluesky():
           db.execute('INSERT INTO second_dim_for_bluesky (col_len_follows, col_len_posts) VALUES (?, ?)',
                     [str(all_follows[identifiers[i]]), str(all_posts[identifiers[i]])])
           db.commit()
+    return render_template('bluesky.html', identifiers=identifiers)
   return render_template('bluesky.html')
 
 @app.route('/x', methods=['POST'])
@@ -225,6 +227,7 @@ def x():
             db.execute("INSERT INTO second_dim_for_x (col_len_follows, col_len_posts) VALUES (?, ?)",
                         [str(follows_insertion), str(posts_insertion)])
             db.commit()
+    return render_template('x.html', identifiers=x_user_ids)
   return render_template('x.html')
 
 @app.route('/pornhub', methods=['POST'])
@@ -292,5 +295,6 @@ def pornhub():
       for i in range(len(actual_tags)):
         db.execute('INSERTO INTO second_dim_for_pornhub (col_len_tags) VALUES (?)',
                   [str(actual_tags[i])])
+    return render_template('pornhub.html', identifiers='identifiers')
   return render_template('pornhub.html')
 
