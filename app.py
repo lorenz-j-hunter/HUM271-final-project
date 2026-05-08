@@ -111,7 +111,8 @@ def bluesky():
             'data' : post_response.json().get('posts')[i].get('uri'),
             'did' : identifier,
             'platform' : 'bluesky',
-            'type' : 'posts'
+            'type' : 'posts',
+            'item_id': str(i)
           })
           insertion_list.append(insertion)
         all_posts[identifier] = insertion_list
@@ -134,7 +135,8 @@ def bluesky():
             'data' : follows_response.json().get('follows')[i].get('did'),
             'did' : identifier,
             'platform' : 'bluesky',
-            'type' : 'follows'
+            'type' : 'follows',
+            'item_id': str(i)
           })
           insertion_list.append(insertion)
         all_follows[identifier] = insertion_list 
@@ -148,17 +150,20 @@ def bluesky():
           'data' : actors.json().get('actors')[i].get('displayName'),
           'did' : actors.json().get('actors')[i].get('did'),
           'platform' : 'bluesky',
-          'type' : 'user'
+          'type' : 'user',
+          'item_id': str(i)
         }) 
         db.execute('INSERT INTO first_dim_for_bluesky (col_head_users, col_head_genders, col_head_follows, col_head_posts) VALUES (?, ?, ?, ?)',
                   [str(insertion), 'head', 'head', 'head'])
         db.commit()
         # Now we add to the second dimension for follows and posts. 
-        insertion_list: list[item] = all_follows[identifiers[i]]
         for i in range(follows_limit):
-          db.execute('INSERT INTO second_dim_for_bluesky (col_len_follows, col_len_posts) VALUES (?, ?)',
-                    [str(all_follows[identifiers[i]]), str(all_posts[identifiers[i]])])
-          db.commit()
+          f_insertion_list: list[item] = all_follows[identifiers[i]]
+          p_insertion_list: list[item] = all_follows[identifiers[i]]
+          for e in range(min(len(f_insertion_list), len(p_insertion_list))):
+            db.execute('INSERT INTO second_dim_for_bluesky (col_len_follows, col_len_posts) VALUES (?, ?)',
+                      [str(f_insertion_list[e]), str(p_insertion_list[e])])
+            db.commit()
     return render_template('bluesky.html', identifiers=identifiers)
   return render_template('bluesky.html')
 
@@ -188,19 +193,22 @@ def x():
           'data': x_users[user], 
           'did': user,
           'platform': 'x',
-          'type': 'users'
+          'type': 'users',
+          'item_id': 'none'
         })
         follows_insertion: item = item({
           'data': 'head',
           'did': user,
           'platform': 'x',
-          'type': 'follows'
+          'type': 'follows',
+          'item_id': 'none'
         })
         posts_insertion: item = item({
           'data': 'head',
           'did': user,
           'platform': 'x',
-          'type': 'posts' 
+          'type': 'posts',
+          'item_id': 'none'
         })
         # Two-dimensional data fields have 'head' as their entry in the first dimension.
         db.execute('INSERT INTO first_dim_for_x (col_head_users, col_head_follows, col_head_posts) VALUES (?, ?, ?)',
@@ -216,13 +224,15 @@ def x():
               'data': str(follows_list[i]), # if it is None, it will be put in like that
               'did': user,
               'platform': 'x',
-              'type': 'follows'
+              'type': 'follows',
+              'item_id': 'none'
             })
             posts_insertion: item = item({
               'data': str(posts_list[i]),
               'did': user,
               'platform': 'x',
-              'type': 'posts'
+              'type': 'posts',
+              'item_id': 'none'
             })
             db.execute("INSERT INTO second_dim_for_x (col_len_follows, col_len_posts) VALUES (?, ?)",
                         [str(follows_insertion), str(posts_insertion)])
@@ -265,14 +275,16 @@ def pornhub():
           'data' : element.get('tag_name', 'None'),
           'did' : 'None',
           'platform' : 'pornhub',
-          'type' : 'tags'
+          'type' : 'tags',
+          'item_id': 'none'
         })
         actual_tags.append(insertion)
       insertion: item = item({
         'data' : 'head',
         'did' : 'None',
         'platform' : 'pornhub',
-        'type' : 'tags' 
+        'type' : 'tags',
+        'item_id': 'none'
       })
       tags.append(insertion)
 
@@ -280,7 +292,8 @@ def pornhub():
         'data' : pornhub_responses[i].json().get('data').get('video').get('title'),
         'did' : 'None',
         'platform' : 'pornhub',
-        'type' : 'title text'
+        'type' : 'title text',
+        'item_id': 'none'
       })
       title_text.append(insertion)
     # Finally, we add these to the database.
