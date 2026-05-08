@@ -293,7 +293,7 @@ def pornhub():
                   [str(title_text[i])])
         db.commit()
       for i in range(len(actual_tags)):
-        db.execute('INSERTO INTO second_dim_for_pornhub (col_len_tags) VALUES (?)',
+        db.execute('INSERT INTO second_dim_for_pornhub (col_len_tags) VALUES (?)',
                   [str(actual_tags[i])])
     return render_template('pornhub.html', identifiers='identifiers')
   return render_template('pornhub.html')
