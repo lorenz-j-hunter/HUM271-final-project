@@ -171,13 +171,28 @@ def bluesky():
                   [str(insertion), 'head', 'head', 'head'])
         db.commit()
         # Now we add to the second dimension for follows and posts. 
+        # First we insert into both columns for follows. Then, we update the rows
+        # that have been filled with posts.
+        # Finally, to cover all cases, we may insert after that, too.
         for i in range(follows_limit):
           f_insertion_list: list[item] = all_follows[identifiers[i]]
-          p_insertion_list: list[item] = all_follows[identifiers[i]]
-          for e in range(min(len(f_insertion_list), len(p_insertion_list))):
+          for e in range(len(f_insertion_list)):
             db.execute('INSERT INTO second_dim_for_bluesky (col_len_follows, col_len_posts) VALUES (?, ?)',
-                      [str(f_insertion_list[e]), str(p_insertion_list[e])])
+                      [str(f_insertion_list[e]), 'None'])
             db.commit()
+        for i in range(posts_limit):
+          p_insertion_list: list[item] = all_posts[identifiers[i]]
+          # We first update what has already been inserted.
+          for e in range(len(f_insertion_list)):
+            db.execute('UPDATE second_dim_for_bluesky SET col_len_posts = (?) WHERE id == (?)',
+                        [str(p_insertion_list[e]), e])
+            db.commit()
+          # Then, we continue to insert if there are more posts than follows. 
+          if len(p_insertion_list) > len(f_insertion_list):
+            for e in range(len(f_insertion_list), len(p_insertion_list)):
+              db.execute('INSERT INTO second_dim_for_bluesky (col_len_follows, col_len_posts) VALUES (?, ?)',
+                          ['None', str(p_insertion_list[e])])
+              db.commit()
     return render_template('bluesky.html', identifiers=identifiers)
   return render_template('bluesky.html')
 
