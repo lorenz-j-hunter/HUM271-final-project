@@ -3,7 +3,7 @@ from utility.classes import item
 from sqlite3 import dbapi2 as sqlite3
 from flask import Flask, render_template, g, request
 from api.responses import get_bluesky, get_x, get_pornhub
-from utility.utilities import get_auth
+from utility.utilities import get_auth, encase
 
 """Create the app and make db commands."""
 app = Flask(__name__)
@@ -52,6 +52,20 @@ def close_db(error):
     if hasattr(g, 'sqlite_db'):
         g.sqlite_db.close()
 
+"""Create utility functions."""
+
+def bluesky_follows_to_undirected_graph(all_follows: dict[str, list[str]], all_posts: dict[str, list[str]]):
+  """Convert the database file (follows) into a csv.
+  The csv represents an undirected and simple graph. Edge weight is 2."""
+  with get_db() as db:
+    # Here we get a list of the user ids.
+    cur = db.execute('SELECT id, col_head_users FROM first_dim_for_bluesky')
+    results: list[str] = cur.fetchall()
+    users: list[str] = [row[1] for row in results]
+    # Now, we get the follows of each user as a list. 
+    for user in users:
+      cur = db.execute('SELECT')
+      pass
 
 
 @app.route('/', methods=['GET'])
@@ -108,11 +122,11 @@ def bluesky():
         for i in range(posts_limit):
           # insert an item.
           insertion: item = item({
-            'data' : post_response.json().get('posts')[i].get('uri'),
-            'did' : identifier,
-            'platform' : 'bluesky',
-            'type' : 'posts',
-            'item_id': str(i)
+            'data' : encase('"', post_response.json().get('posts')[i].get('uri')),
+            'did' : encase('"', identifier),
+            'platform' : '"bluesky"',
+            'type' : '"posts"',
+            'item_id': encase('"', str(i))
           })
           insertion_list.append(insertion)
         all_posts[identifier] = insertion_list
@@ -132,11 +146,11 @@ def bluesky():
         insertion_list: list[item] = []
         for i in range(follows_limit):
           insertion: item = item({
-            'data' : follows_response.json().get('follows')[i].get('did'),
-            'did' : identifier,
-            'platform' : 'bluesky',
-            'type' : 'follows',
-            'item_id': str(i)
+            'data' : encase('"', follows_response.json().get('follows')[i].get('did')),
+            'did' : encase('"', identifier),
+            'platform' : '"bluesky"',
+            'type' : '"follows"',
+            'item_id': encase('"', str(i))
           })
           insertion_list.append(insertion)
         all_follows[identifier] = insertion_list 
@@ -147,11 +161,11 @@ def bluesky():
       # We first insert to the first dimension here, then move onto the second dimension.
       for i in range(bluesky_length): # assume all of these lists are the same length
         insertion: item = item({
-          'data' : actors.json().get('actors')[i].get('displayName'),
-          'did' : actors.json().get('actors')[i].get('did'),
-          'platform' : 'bluesky',
-          'type' : 'user',
-          'item_id': str(i)
+          'data' : encase('"', actors.json().get('actors')[i].get('displayName')),
+          'did' : encase('"', actors.json().get('actors')[i].get('did')),
+          'platform' : '"bluesky"',
+          'type' : '"user"',
+          'item_id': encase('"', str(i))
         }) 
         db.execute('INSERT INTO first_dim_for_bluesky (col_head_users, col_head_genders, col_head_follows, col_head_posts) VALUES (?, ?, ?, ?)',
                   [str(insertion), 'head', 'head', 'head'])
@@ -190,25 +204,25 @@ def x():
     with get_db() as db:
       for user in x_user_ids:
         user_insertion: item = item({
-          'data': x_users[user], 
-          'did': user,
-          'platform': 'x',
-          'type': 'users',
-          'item_id': 'none'
+          'data': encase('"', x_users[user]), 
+          'did': encase('"', user),
+          'platform': '"x"',
+          'type': '"users"',
+          'item_id': '"none"'
         })
         follows_insertion: item = item({
-          'data': 'head',
-          'did': user,
-          'platform': 'x',
-          'type': 'follows',
-          'item_id': 'none'
+          'data': '"head"',
+          'did': encase('"', user),
+          'platform': '"x"',
+          'type': '"follows"',
+          'item_id': '"none"'
         })
         posts_insertion: item = item({
-          'data': 'head',
-          'did': user,
-          'platform': 'x',
-          'type': 'posts',
-          'item_id': 'none'
+          'data': '"head"',
+          'did': encase('"', user),
+          'platform': '"x"',
+          'type': '"posts"',
+          'item_id': '"none"'
         })
         # Two-dimensional data fields have 'head' as their entry in the first dimension.
         db.execute('INSERT INTO first_dim_for_x (col_head_users, col_head_follows, col_head_posts) VALUES (?, ?, ?)',
@@ -221,18 +235,18 @@ def x():
           posts_list = x_posts[user]
           for i in range(max([len(follows_list), len(posts_list)])):
             follows_insertion: item = item({
-              'data': str(follows_list[i]), # if it is None, it will be put in like that
-              'did': user,
-              'platform': 'x',
-              'type': 'follows',
-              'item_id': 'none'
+              'data': encase('"', str(follows_list[i])), # if it is None, it will be put in like that
+              'did': encase('"', user),
+              'platform': '"x"',
+              'type': '"follows"',
+              'item_id': '"none"'
             })
             posts_insertion: item = item({
-              'data': str(posts_list[i]),
-              'did': user,
-              'platform': 'x',
-              'type': 'posts',
-              'item_id': 'none'
+              'data': encase('"', str(posts_list[i])),
+              'did': encase('"', user),
+              'platform': '"x"',
+              'type': '"posts"',
+              'item_id': '"none"'
             })
             db.execute("INSERT INTO second_dim_for_x (col_len_follows, col_len_posts) VALUES (?, ?)",
                         [str(follows_insertion), str(posts_insertion)])
@@ -272,28 +286,28 @@ def pornhub():
       for element in raw:
         string_list.append(element.get('tag_name')) # pyright: ignore[reportArgumentType]
         insertion: item = item({
-          'data' : element.get('tag_name', 'None'),
-          'did' : 'None',
-          'platform' : 'pornhub',
-          'type' : 'tags',
-          'item_id': 'none'
+          'data' : encase('"', element.get('tag_name', 'None')),
+          'did' : '"None"',
+          'platform' : '"pornhub"',
+          'type' : '"tags"',
+          'item_id': '"none"'
         })
         actual_tags.append(insertion)
       insertion: item = item({
-        'data' : 'head',
-        'did' : 'None',
-        'platform' : 'pornhub',
-        'type' : 'tags',
-        'item_id': 'none'
+        'data' : '"head"',
+        'did' : '"None"',
+        'platform' : '"pornhub"',
+        'type' : '"tags"',
+        'item_id': '"none"'
       })
       tags.append(insertion)
 
       insertion: item = item({
-        'data' : pornhub_responses[i].json().get('data').get('video').get('title'),
-        'did' : 'None',
-        'platform' : 'pornhub',
-        'type' : 'title text',
-        'item_id': 'none'
+        'data' : encase('"', pornhub_responses[i].json().get('data').get('video').get('title')),
+        'did' : '"None"',
+        'platform' : '"pornhub"',
+        'type' : '"title text"',
+        'item_id': '"none"'
       })
       title_text.append(insertion)
     # Finally, we add these to the database.
