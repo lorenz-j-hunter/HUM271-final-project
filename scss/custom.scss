@@ -1,0 +1,68 @@
+// Required
+@import "../node_modules/bootstrap/scss/functions";
+
+$component-active-bg: #e85151;
+
+@import "../node_modules/bootstrap/scss/bootstrap.scss";
+@import "../node_modules/bootstrap/scss/variables";
+
+
+// Default variable overrides
+$body-bg: #3b3535;
+$body-tertiary-bg: tint-color($body-bg, 40%);
+$body-color: #c29d9d;
+$body-emphasis-color: tint-color(#e85151, 40%);
+$body-secondary-color: tint-color($body-color, 40%);
+$primary: #e85151;
+$secondary: #4f1713;
+$success: #fff;
+$danger: #000;
+$warning: #fafa48;
+$info: #5c5c1c;
+
+$theme-colors: ( 
+  "body-bg": $body-bg,
+  "body-color": $body-color,
+  "primary": $primary,
+  "secondary": $secondary,
+  "success": $success,
+  "danger": $danger,
+  "warning": $warning,
+  "info": $info,
+  "tertiary": shade-color($body-bg, 20%)
+);
+
+@import "../node_modules/bootstrap/scss/mixins";
+@import "../node_modules/bootstrap/scss/nav";
+
+$component-active-bg: $primary;
+$link-color: $primary;
+$link-hover-color: shade-color($primary, 40%);
+
+@import "../node_modules/bootstrap/scss/buttons";
+
+// custom elements
+
+.custom-element {
+  color: $primary;
+  background-color: $body-bg;
+}
+
+.custom-element-1 {
+  color: tint-color($primary, 10%)
+}
+
+.custom-element-2 {
+  color: shade-color($danger, 40%)
+}
+
+// Required
+
+@import "../node_modules/bootstrap/scss/variables-dark";
+@import "../node_modules/bootstrap/scss/maps";
+@import "../node_modules/bootstrap/scss/root";
+
+// Optional Bootstrap components here
+@import "../node_modules/bootstrap/scss/reboot";
+@import "../node_modules/bootstrap/scss/type";
+// etc
