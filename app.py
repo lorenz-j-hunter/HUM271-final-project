@@ -1,9 +1,51 @@
-import os, time, requests  # pyright: ignore[reportMissingModuleSource]
+import os, time, requests, random  # pyright: ignore[reportMissingModuleSource]
 from utility.classes import item
 from sqlite3 import dbapi2 as sqlite3
 from flask import Flask, render_template, g, request
-from api.responses import get_bluesky, get_x, get_pornhub
+from api.responses import get_x, get_pornhub
 from utility.utilities import get_auth, encase
+
+def get_bluesky(bluesky_length: int) -> dict[str, list[dict[str, str]]]:
+  """API responses from Bluesky.
+  `JSON` bodies are collected, then condensed into a dict.
+  Return actors, where `actors` is the schema of the
+  collection of bluesky responses.
+
+  *Arguments* 
+  bluesky_length (int) : the number of actors to query for.
+  
+  *Return value*
+  actors (dict[str, list[dict[str,str]]]) : A dict that resembles the schema from docs.bsky.com
+  for this endpoint."""
+  # This is a 'searchActors' query only.
+  endpoint = "https://public.api.bsky.app/xrpc/app.bsky.actor.searchActors"
+  # We paginate through the search list until the `actors` is filled. 
+  cursor = None 
+  actors_list: list[requests.Response] = []
+  while len(actors_list) <= bluesky_length:
+    params: dict[str, str | int] = {
+      "q" : 'a',
+      "limit" : 1 
+    }
+    if cursor:
+      params["cursor"] = cursor
+    # This is the response created with this endpoint and their parameters.
+    response = requests.get(endpoint, params)
+    cursor = response.json().get('cursor')
+    actors_list.append(response)
+  # Here, we compress the list of responses into a single response. 
+  actors: dict[str, list[dict[str, str]]] = {
+    'actors': []
+  } 
+  # Finally, we return the schema.
+  # This is the schema that can be found on docs.bsky.com for this endpoint.
+  # However, we only return one element of the schema: 'actors'.
+  # That's like returning only one pair of a normal `requests.Response`. 
+  for actor in actors_list:
+    if len(actor.json().get('actors')) > 0: # Some pages do not have any actors on them ... ? 
+      actors['actors'].append(actor.json().get('actors')[0]) 
+  return actors
+
 
 """Create the app and make db commands."""
 app = Flask(__name__)
@@ -82,65 +124,75 @@ def bluesky():
     want to operate on it.
   """
   if request.method == 'GET':
-    package = get_bluesky()
-    bluesky_length: int = package[0] # type: ignore
-    actors: requests.Response = package[1] # type: ignore
-    # This (identifiers) is a list of handles of users.
-    # On same dimension as 'bluesky_length' but not for 'follows_limit'.
+    # Before we do anything, we need to reset.
+    # This means getting API responses and deleting the previous 
+    # request information.
+    with get_db() as db:
+      db.execute('DELETE FROM first_dim_for_bluesky')
+      db.execute('DELETE FROM second_dim_for_bluesky')
+      db.commit()
+    bluesky_length = 15 # this is arbitrary
+    actors: dict[str, list[dict[str, str]]] = get_bluesky(bluesky_length) 
+    # Now we define some common variables. 
+    # `identifiers` is a list of handles of users.
+    # This is on same dimension as 'bluesky_length' but not for 'follows_limit'.
     identifiers: list[str] = []
     posts_endpoint: str = "https://api.bsky.app/xrpc/app.bsky.feed.searchPosts"
     follows_endpoint: str = "https://api.bsky.app/xrpc/app.bsky.graph.getFollows"
     # Key: Handle of user in question
     # Value: URI of text from post.
-    all_posts: dict[str, list[item]] = {} 
+    all_posts: dict[str, list[item]] = {}
     # Key: Handle of the user in question
-    # Value: List of handles of follows.  
+    # Value: List of handles of follows.
     all_follows: dict[str, list[item]] = {}
     follows_limit: int = 100
     posts_limit: int = 100
-    for actor in range(bluesky_length): # type: ignore
-      # Here, we traverse the thing by actor.
-      # We separate actors' at-identifiers (did) from the json first. 
-      for actor in actors.json().get('actors'):
-        identifiers.append(actor.get('handle'))
-      # Here, we gather all post data. 
+    # Here, we traverse the thing by actor.
+    # We separate actors' handles from the json first to do this.
+    for e in actors['actors']:
+      identifiers.append(e['handle'])
+    for identifier in identifiers:
+      # Here, we gather all post data of the user in question.
       # It is stored in a dict; the DID of the user in question is
       # the key and the corresponding *list* of posts is the value.
-      for identifier in identifiers:
-        posts_params: dict[str, str | int] = {
-          "q" : "a",
-          "author" : identifier,
-          'limit' : posts_limit 
-        }
-        post_response: requests.Response = requests.get(
-          posts_endpoint, posts_params 
-        )
-        if post_response.status_code == 403: # AppView deliberately returns 403 to reduce load 
-          continue 
-        posts_limit = len(post_response.json().get('posts'))
-        insertion_list: list[item] = []
-        for i in range(posts_limit):
-          # insert an item.
-          insertion: item = item({
-            'data' : encase('"', post_response.json().get('posts')[i].get('uri')),
-            'did' : encase('"', identifier),
-            'platform' : '"bluesky"',
-            'type' : '"posts"',
-            'item_id': encase('"', str(i))
-          })
-          insertion_list.append(insertion)
-        all_posts[identifier] = insertion_list
-        # Now here we gather all follow data.
-        # These are inserted into a dictionary called 'all_follows', which
-        # has as it's key the handle and as a value the list of all follows
-        # (their handles).
-        follows_params: dict[str, str | int] = {
-          "actor" : identifier,
-          "limit" : follows_limit 
-        } 
-        follows_response: requests.Response = requests.get(
-          follows_endpoint, follows_params  
-        )
+      posts_params: dict[str, str | int] = {
+        "q" : "a",
+        "author" : identifier,
+        'limit' : posts_limit 
+      }
+      post_response: requests.Response = requests.get(
+        posts_endpoint, posts_params 
+      )
+      if post_response.status_code == 403: # AppView deliberately returns 403 to reduce load 
+        all_posts[identifier] = []
+        all_follows[identifier] = []
+        continue 
+      posts_limit = len(post_response.json().get('posts'))
+      insertion_list: list[item] = []
+      for i in range(posts_limit):
+        # insert an item.
+        insertion: item = item({
+          'data' : encase('"', post_response.json().get('posts')[i].get('uri')),
+          'did' : encase('"', identifier),
+          'platform' : '"bluesky"',
+          'type' : '"posts"',
+          'item_id': encase('"', str(i))
+        })
+        insertion_list.append(insertion)
+      all_posts[identifier] = insertion_list
+      # Now here we gather all follow data of the user in question.
+      # These are inserted into a dictionary called 'all_follows', which
+      # has as it's key the handle and as a value the list of all follows
+      # (their handles).
+      follows_params: dict[str, str | int] = {
+        "actor" : identifier,
+        "limit" : follows_limit 
+      } 
+      follows_response: requests.Response = requests.get(
+        follows_endpoint, follows_params  
+      )
+
+      if follows_response: # Sometimes, follows_response is None. 
         follows_limit = len(follows_response.json().get('follows'))
         # Insert an item.
         insertion_list: list[item] = []
@@ -154,18 +206,21 @@ def bluesky():
           })
           insertion_list.append(insertion)
         all_follows[identifier] = insertion_list 
+      else: # In this case, we still have to fill all_follows with something.
+        insertion_list: list[item] = []
+        all_follows[identifier] = insertion_list
     # Finally, we add these columns to a database.
     # It's in the database that the data will be operated on
     # to find refined things like 'perceived opinion'.
     with get_db() as db:
       # We first insert to the first dimension here, then move onto the second dimension.
-      for i in range(bluesky_length): # assume all of these lists are the same length
+      for actor in range(bluesky_length): # assume all of these lists are the same length
         insertion: item = item({
-          'data' : encase('"', actors.json().get('actors')[i].get('displayName')),
-          'did' : encase('"', actors.json().get('actors')[i].get('did')),
+          'data' : encase('"', actors['actors'][actor].get('displayName', 'None')), 
+          'did' : encase('"', actors['actors'][actor].get('did', 'None')),
           'platform' : '"bluesky"',
           'type' : '"user"',
-          'item_id': encase('"', str(i))
+          'item_id': encase('"', str(actor))
         }) 
         db.execute('INSERT INTO first_dim_for_bluesky (col_head_users, col_head_genders, col_head_follows, col_head_posts) VALUES (?, ?, ?, ?)',
                   [str(insertion), 'head', 'head', 'head'])
@@ -174,26 +229,30 @@ def bluesky():
         # First we insert into both columns for follows. Then, we update the rows
         # that have been filled with posts.
         # Finally, to cover all cases, we may insert after that, too.
-        for i in range(follows_limit):
-          f_insertion_list: list[item] = all_follows[identifiers[i]]
+        for _ in range(follows_limit):
+          f_insertion_list: list[item] = all_follows[identifiers[actor]]
           for e in range(len(f_insertion_list)):
             db.execute('INSERT INTO second_dim_for_bluesky (col_len_follows, col_len_posts) VALUES (?, ?)',
                       [str(f_insertion_list[e]), 'None'])
             db.commit()
-        for i in range(posts_limit):
-          p_insertion_list: list[item] = all_posts[identifiers[i]]
+        for _ in range(posts_limit):
+          f_insertion_list_len: int = len(all_follows[identifiers[actor]])
+          p_insertion_list: list[item] = all_posts[identifiers[actor]]
           # We first update what has already been inserted.
-          for e in range(len(f_insertion_list)):
+          for e in range(f_insertion_list_len):
             db.execute('UPDATE second_dim_for_bluesky SET col_len_posts = (?) WHERE id == (?)',
                         [str(p_insertion_list[e]), e])
             db.commit()
           # Then, we continue to insert if there are more posts than follows. 
-          if len(p_insertion_list) > len(f_insertion_list):
-            for e in range(len(f_insertion_list), len(p_insertion_list)):
+          if len(p_insertion_list) > f_insertion_list_len:
+            for e in range(f_insertion_list_len, len(p_insertion_list)):
               db.execute('INSERT INTO second_dim_for_bluesky (col_len_follows, col_len_posts) VALUES (?, ?)',
                           ['None', str(p_insertion_list[e])])
               db.commit()
-    return render_template('bluesky.html', identifiers=identifiers)
+      # We will pull data from another function in order to display the results.
+      # If we do want to send anything in as an argument, it will be something
+      # that is required for this. 
+      return render_template('bluesky.html', identifiers=identifiers)
   return render_template('bluesky.html')
 
 @app.route('/x', methods=['POST'])
