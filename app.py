@@ -46,6 +46,75 @@ def get_bluesky(bluesky_length: int) -> dict[str, list[dict[str, str]]]:
       actors['actors'].append(actor.json().get('actors')[0]) 
   return actors
 
+"""Global API responses for X."""
+def get_x() -> list[list[str] | dict[str, str] | dict[str, list]]:
+  """API responses from X.
+  Return [x_user_ids, x_users, x_follows, x_posts], where `x_user_ids` is `list[str],
+  `x_users` is `dict[str, str]`, `x_follows` is `dict[str, list[str]]`, and
+  `x_posts` is `dict[str, list[str]]`."""
+  # Just so you know, we only get these in order to get author ids. 
+  x_posts_url = "https://api.x.com/2/tweets/search/all"
+  x_posts_headers = {"Authorization": f"Bearer {get_auth('x_bearer_token.txt')}"}
+  x_posts_params = {
+    "query": "lang:en a e i o u",
+    "start_time": "2020-01-01T00:00:00Z",
+    "end_time": "2026-01-01T00:00:00Z",
+    "max_results": 10,
+    "tweet.fields": ['author_id'],
+    "user.fields": ['username']
+  }
+  x_posts_response = requests.get(x_posts_url, headers=x_posts_headers, params=x_posts_params)
+  x_user_ids: list[str] = []
+  for post in x_posts_response.json().get('data'):
+    x_user_ids.append(post.get('author_id'))
+
+  # Now, we map the user ids to the usernames that they bear. 
+  # We need to do this before we call requests.
+
+  x_users: dict[str, str] = {}
+  for id in x_user_ids:
+    url = f"https://api.x.com/2/users/{id}"
+    headers = {"Authorization": f"Bearer {get_auth('x_bearer_token.txt')}"}
+    params = {"user.fields": ['username']}
+    response = requests.get(url, headers=headers, params=params)
+    x_users[id] = response.json().get('data').get('username')
+
+  # Now, we get follow data.
+  x_follows: dict[str, list[str]] = {}
+  for id in x_user_ids:
+    # Make the request.
+    url = f"https://api.x.com/2/users/{id}/following"
+    headers = {"Authorization": f"Bearer {get_auth('x_bearer_token.txt')}"} 
+    params = {"max_results": 10}
+    response = requests.get(url, headers=headers, params=params)
+    # Map it to the user.
+    json_list: list[dict[str, str]] = response.json().get('data')
+    real_list: list[str] = []
+    for element in json_list:
+      real_list.append(element.get('id')) # type: ignore
+    x_follows[id] = real_list
+
+  # Now, we get a list of posts for each user.
+  x_posts: dict[str, list[str]] = {}
+  for id in x_user_ids:
+    time.sleep(10) # rate limits.
+    # Make the request.
+    url = f"https://api.x.com/2/users/{id}/tweets"
+    headers = {"Authorization": f"Bearer {get_auth('x_bearer_token.txt')}"}
+    response = requests.get(url, headers=headers)
+    # Map it to the user.
+    if response.json().get('data') is None:
+      continue
+    else:
+      json_list: list[dict[str, str]] = response.json().get('data')
+      real_list: list[str] = []
+      for element in json_list:
+        real_list.append(element.get('text')) # type: ignore
+      x_posts[id] = real_list
+
+  return [x_user_ids, x_users, x_follows, x_posts] 
+
+
 
 """Create the app and make db commands."""
 app = Flask(__name__)
@@ -191,7 +260,6 @@ def bluesky():
       follows_response: requests.Response = requests.get(
         follows_endpoint, follows_params  
       )
-
       if follows_response: # Sometimes, follows_response is None. 
         follows_limit = len(follows_response.json().get('follows'))
         # Insert an item.
@@ -255,7 +323,7 @@ def bluesky():
       return render_template('bluesky.html', identifiers=identifiers)
   return render_template('bluesky.html')
 
-@app.route('/x', methods=['POST'])
+@app.route('/x', methods=['GET', 'POST'])
 def x():
   """Open the route which uses the x api. 
   - Here, we gather the info needed to create a CSV
@@ -270,12 +338,14 @@ def x():
   #
   # So we begin right here with creating item objects and storing those in lists. 
   if request.method == 'GET':
+    init_db()
     package: list = get_x()
-    x_user_ids: list[str] = package[0] # type: ignore
-    x_users: dict[str, str] = package[1] # type: ignore
-    x_follows: dict[str, list] = package[2] # type: ignore
-    x_posts: dict[str, list] = package[3]
+    x_user_ids: list[str] = package[0] 
+    x_users: dict[str, str] = package[1] 
+    x_follows: dict[str, list[str]] = package[2] 
+    x_posts: dict[str, list[str]] = package[3]
     with get_db() as db:
+      item_id: int = 0 # Keep track of the user. 
       for user in x_user_ids:
         user_insertion: item = item({
           'data': encase('"', x_users[user]), 
@@ -284,47 +354,76 @@ def x():
           'type': '"users"',
           'item_id': '"none"'
         })
-        follows_insertion: item = item({
-          'data': '"head"',
-          'did': encase('"', user),
-          'platform': '"x"',
-          'type': '"follows"',
-          'item_id': '"none"'
-        })
-        posts_insertion: item = item({
-          'data': '"head"',
-          'did': encase('"', user),
-          'platform': '"x"',
-          'type': '"posts"',
-          'item_id': '"none"'
-        })
         # Two-dimensional data fields have 'head' as their entry in the first dimension.
         db.execute('INSERT INTO first_dim_for_x (col_head_users, col_head_follows, col_head_posts) VALUES (?, ?, ?)',
-                  [str(user_insertion), str(follows_insertion), str(posts_insertion)])
+                  [str(user_insertion), 'head', 'head'])
         db.commit()
       # Here we begin adding to the second dimension, starting with follows. 
-      with get_db() as db:
-        for user in x_user_ids:
-          follows_list = x_follows[user]
-          posts_list = x_posts[user]
-          for i in range(max([len(follows_list), len(posts_list)])):
+      # The database format is exactly the same here as it is for
+      # def bluesky(). Each person's follows or posts is printed to the database column,
+      # all with an item_id unique to that person. The person in question can be
+      # identified using the 'did' element within each entry. 
+      for user in x_user_ids:
+        follows_list = x_follows[user]
+        posts_list = x_posts[user]
+        len_follows_list = len(follows_list)
+        len_posts_list = len(posts_list)
+        # Like in Bluesky, we first insert from the list with the longest length. (say, `follows_list`).
+        # To satisfy the 'not null' condition, the entries parallel to it from the
+        # other list (say, `posts_list`) are 'None'.
+        # Then, we update the list to change the 'None' to entries from `posts_list`.
+        # Finally, if `posts_list` is longer than `follows_list`, we insert it only.
+        if len_follows_list >= len_posts_list:
+          for i in range(len_follows_list):
+            # Insert for follows_list
             follows_insertion: item = item({
               'data': encase('"', str(follows_list[i])), # if it is None, it will be put in like that
-              'did': encase('"', user),
+              'did': encase('"', user), 
               'platform': '"x"',
               'type': '"follows"',
-              'item_id': '"none"'
+              'item_id': encase('"', str(item_id)) 
             })
+            db.execute("INSERT INTO second_dim_for_x (col_len_follows, col_len_posts, item_id) VALUES (?, ?, ?)",
+                      [str(follows_insertion), '"None"', str(item_id)]) # To know which to update , we keep track of the item_id.
+            db.commit()
+          # Update posts_list
+          for i in range(len_posts_list):
             posts_insertion: item = item({
               'data': encase('"', str(posts_list[i])),
               'did': encase('"', user),
               'platform': '"x"',
               'type': '"posts"',
-              'item_id': '"none"'
+              'item_id': encase('"', str(item_id))
             })
-            db.execute("INSERT INTO second_dim_for_x (col_len_follows, col_len_posts) VALUES (?, ?)",
-                        [str(follows_insertion), str(posts_insertion)])
+            db.execute('UPDATE second_dim_for_x SET col_len_posts = (?) WHERE item_id == (?)',
+                        [str(posts_insertion), str(item_id)])
             db.commit()
+        else: # len_posts_list > len_follows_list
+          for i in range(len_posts_list):
+            # Insert for posts_list
+            posts_insertion: item = item({
+              'data': encase('"', str(posts_list[i])), # if it is None, it will be put in like that
+              'did': encase('"', user),
+              'platform': '"x"',
+              'type': '"posts"',
+              'item_id': encase('"', str(item_id)) 
+            })
+            db.execute("INSERT INTO second_dim_for_x (col_len_follows, col_len_posts, item_id) VALUES (?, ?, ?)",
+                        ['"None"', str(posts_insertion), str(item_id)])
+            db.commit()
+          # Update for follows_list
+          for i in range(len_follows_list):
+            follows_insertion: item = item({
+              'data': encase('"', str(follows_list[i])),
+              'did': encase('"', user),
+              'platform': '"x"',
+              'type': '"posts"',
+              'item_id': encase('"', str(item_id))
+            })
+            db.execute('UPDATE second_dim_for_x SET col_len_follows = (?) WHERE item_id == (?)',
+                        [str(follows_insertion), str(item_id)])
+            db.commit()
+        item_id += 1
     return render_template('x.html', identifiers=x_user_ids)
   return render_template('x.html')
 
