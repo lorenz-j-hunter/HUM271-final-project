@@ -21,10 +21,14 @@ def encase(char: str, target: str) -> str:
     raise TypeError(f"In encase(char={char}, target={target}), string is not of length 1.")
   return char + target + char
 
-def extract(target: str) -> list[str]:
-  """Return a list of substrings which are encased
-  as defined by the encase() function."""
+def extract(target: str) -> dict[str,str]:
+  """Return a dict of substrings which are encased
+  as defined by the encase() function.
+  The dict matches the left of colon with right of colon."""
   pre = target.split('"_"')
+  ret: dict[str,str] = {}
   for elem in pre:
     elem.strip('"')
-  return pre
+    temp = elem.split(':')
+    ret[temp[0]] = temp[1]
+  return ret
