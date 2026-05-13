@@ -1,9 +1,9 @@
-import os, time, requests, random  # pyright: ignore[reportMissingModuleSource]
+import os, time, requests  # pyright: ignore[reportMissingModuleSource]
 from utility.classes import item
 from sqlite3 import dbapi2 as sqlite3
 from flask import Flask, render_template, g, request
 from api.responses import get_x, get_pornhub
-from utility.utilities import get_auth, encase
+from utility.utilities import get_auth, encase, make_token
 
 def get_bluesky(bluesky_length: int) -> dict[str, list[dict[str, str]]]:
   """API responses from Bluesky.
@@ -115,6 +115,24 @@ def get_x() -> list[list[str] | dict[str, str] | dict[str, list]]:
   return [x_user_ids, x_users, x_follows, x_posts] 
 
 
+def get_pornhub() -> list[int | list[requests.Response]]:
+  """API responses for Pornhub. 
+  Return [pornhub_length, pornhub_responses], where `pornhub_length` is the number of videos
+  that were requested and `pornhub_responses` is `list[requests.Response]`."""
+  url = "https://pornhub2.p.rapidapi.com/v2/search"
+  pornhub_length = 10
+  pornhub_responses: list[requests.Response] = []
+  for _ in range(pornhub_length):
+    querystring = {"search":"oiled","page":"1","period":"weekly","ordering":"newest","thumbsize":"small"}
+    headers = {
+      "x-rapidapi-key": get_auth('pornhub_key.txt'),
+      "x-rapidapi-host": "pornhub2.p.rapidapi.com",
+      "Content-Type": "application/json"
+    }
+    response = requests.get(url, headers=headers, params=querystring)
+    pornhub_responses.append(response)
+  return [pornhub_length, pornhub_responses]
+
 
 """Create the app and make db commands."""
 app = Flask(__name__)
@@ -193,6 +211,7 @@ def bluesky():
     want to operate on it.
   """
   if request.method == 'GET':
+    init_db()
     # Before we do anything, we need to reset.
     # This means getting API responses and deleting the previous 
     # request information.
@@ -427,7 +446,7 @@ def x():
     return render_template('x.html', identifiers=x_user_ids)
   return render_template('x.html')
 
-@app.route('/pornhub', methods=['POST'])
+@app.route('/pornhub', methods=['POST', 'GET'])
 def pornhub():
   """Open the route which uses the pornhub api. 
   - Here, we gather the info needed to create a CSV
@@ -437,64 +456,72 @@ def pornhub():
     want to operate on it.
   """
   if request.method == 'GET':
-    package = get_pornhub()
-    pornhub_length: int = package[0] # type: ignore
-    pornhub_responses: list[requests.Response] = package[1] # type: ignore
+    init_db()
+    package: list = get_pornhub()
+    pornhub_length: int = package[0] 
+    pornhub_responses: list[requests.Response] = package[1]
+    url = "https://pornhub2.p.rapidapi.com/v2/video_by_id"
     # These are our return values. Each represent a column of the CSV we want to create with this
     # function.
-    # Pornhub doesn't have a rich text circulation, so we grab the title and tag.
-    # We can assume that the demographic of watcher influences which type of video they
-    # watch.
-    # With that, we can compare data like title interpretations for 'perceived opinion',
-    # quantity of one video group with quantity of another video group. 
-    tags: list[item] = []
-    actual_tags: list[item] = []
-    title_text: list[item] = []
-    # Traverse all of the fetched videos. Get their tags and titles, then
-    # put those in 'item' objects. 
-    for i in range(pornhub_length):
-      time.sleep(5) # the api will send HTTP 429 - 'requests are coming too fast.'
-      raw: list[dict[str, str]] = pornhub_responses[i].json().get('data').get('video').get('tags')
-      string_list: list[str] = []
-      for element in raw:
-        string_list.append(element.get('tag_name')) # pyright: ignore[reportArgumentType]
-        insertion: item = item({
-          'data' : encase('"', element.get('tag_name', 'None')),
-          'did' : '"None"',
-          'platform' : '"pornhub"',
-          'type' : '"tags"',
-          'item_id': '"none"'
-        })
-        actual_tags.append(insertion)
-      insertion: item = item({
-        'data' : '"head"',
-        'did' : '"None"',
-        'platform' : '"pornhub"',
-        'type' : '"tags"',
-        'item_id': '"none"'
-      })
-      tags.append(insertion)
-
-      insertion: item = item({
-        'data' : encase('"', pornhub_responses[i].json().get('data').get('video').get('title')),
-        'did' : '"None"',
-        'platform' : '"pornhub"',
-        'type' : '"title text"',
-        'item_id': '"none"'
-      })
-      title_text.append(insertion)
-    # Finally, we add these to the database.
-    # We open the tables for both dimensions, as 'tags' has a second dimension.
+    # Unlike X or Bluesky, the API we use doesn't store comment data. Only title and text.
+    # First, we extract the video ID for each response. Then, we create another 
+    # request with the ID. 
+    video_ids: list[str] = []
     with get_db() as db:
       for i in range(pornhub_length):
-        db.execute('INSERT INTO first_dim_for_pornhub (col_head_tags) VALUES (?)',
-                  [str(tags[i])])
-        db.execute('INSERT INTO first_dim_for_pornhub (col_head_title_text) VALUES (?)',
-                  [str(title_text[i])])
-        db.commit()
-      for i in range(len(actual_tags)):
-        db.execute('INSERT INTO second_dim_for_pornhub (col_len_tags) VALUES (?)',
-                  [str(actual_tags[i])])
+        # We're extracting the video ID now.
+        raw: dict[str, str] = pornhub_responses[i].json().get('data').get('videos')[i]
+        video_id: str = raw['video_id']
+        video_ids.append(video_id)
+        # Now, we're searching for this video using its ID. 
+        querystring = {"id":video_id,"thumbsize":"small"}
+        headers = {
+          "x-rapidapi-key": get_auth('pornhub_key.txt'),
+          "x-rapidapi-host": "pornhub2.p.rapidapi.com",
+          "Content-Type": "application/json"
+        }
+        response: requests.Response = requests.get(url, headers=headers, params=querystring)
+        # Now it's possible for us to get the details of it.
+        # We grab the title and tags. But remember, since tags is two-dimensional, we 
+        # only insert head for that here and then get it later. 
+        insertion: item = item({
+          'data' : encase('"', video_id),
+          'did' : '"None"',
+          'platform' : '"pornhub"',
+          'type' : '"video_id"',
+          'item_id': encase('"', str(i))
+        })
+        db.execute('INSERT INTO first_dim_for_pornhub (col_head_tags, col_head_title_text) VALUES (?, ?)',
+                  ['head', str(insertion)])
+    # Next, we handle the second dimension.
+    # We use the ids gathered before to search for title and tags. 
+    # We make a request for each iteration.
+    with get_db() as db:
+      item_id: int = 0
+      for i in range(pornhub_length):
+        # Now, we're searching for this video using its ID. 
+        querystring = {"id":video_ids[i],"thumbsize":"small"}
+        headers = {
+          "x-rapidapi-key": get_auth('pornhub_key.txt'),
+          "x-rapidapi-host": "pornhub2.p.rapidapi.com",
+          "Content-Type": "application/json"
+        }
+        response: requests.Response = requests.get(url, headers=headers, params=querystring)
+        tags: list[dict[str,str]] = response.json().get('data').get('video').get('tags')
+        # For this video, we just extracted its title and a list of tags. Now, we insert
+        # them into the database this way.
+        for e in tags:
+          tag_insertion: item = item({
+            'data': encase('"', e.get('tag_name', '"None"')),
+            'did': '"None"',
+            'platform': '"pornhub"',
+            'type': '"tag"',
+            'item_id': encase('"', str(item_id))
+          })
+          db.execute('INSERT INTO second_dim_for_pornhub (col_len_tags) VALUES (?)',
+                    [str(tag_insertion)])
+          db.commit()
+        item_id += 1
     return render_template('pornhub.html', identifiers='identifiers')
   return render_template('pornhub.html')
 
