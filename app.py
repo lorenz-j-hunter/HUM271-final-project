@@ -2,8 +2,7 @@ import os, time, requests  # pyright: ignore[reportMissingModuleSource]
 from utility.classes import item
 from sqlite3 import dbapi2 as sqlite3
 from flask import Flask, render_template, g, request
-from api.responses import get_x, get_pornhub
-from utility.utilities import get_auth, encase, make_token
+from utility.utilities import get_auth, encase, extract
 
 def get_bluesky(bluesky_length: int) -> dict[str, list[dict[str, str]]]:
   """API responses from Bluesky.
@@ -24,7 +23,7 @@ def get_bluesky(bluesky_length: int) -> dict[str, list[dict[str, str]]]:
   actors_list: list[requests.Response] = []
   while len(actors_list) <= bluesky_length:
     params: dict[str, str | int] = {
-      "q" : 'a',
+      "q" : 'lang:en a e i o u',
       "limit" : 1 
     }
     if cursor:
@@ -47,7 +46,7 @@ def get_bluesky(bluesky_length: int) -> dict[str, list[dict[str, str]]]:
   return actors
 
 """Global API responses for X."""
-def get_x() -> list[list[str] | dict[str, str] | dict[str, list]]:
+def get_x(x_length: int) -> list[list[str] | dict[str, str] | dict[str, list]]:
   """API responses from X.
   Return [x_user_ids, x_users, x_follows, x_posts], where `x_user_ids` is `list[str],
   `x_users` is `dict[str, str]`, `x_follows` is `dict[str, list[str]]`, and
@@ -59,7 +58,7 @@ def get_x() -> list[list[str] | dict[str, str] | dict[str, list]]:
     "query": "lang:en a e i o u",
     "start_time": "2020-01-01T00:00:00Z",
     "end_time": "2026-01-01T00:00:00Z",
-    "max_results": 10,
+    "max_results": x_length,
     "tweet.fields": ['author_id'],
     "user.fields": ['username']
   }
@@ -115,23 +114,45 @@ def get_x() -> list[list[str] | dict[str, str] | dict[str, list]]:
   return [x_user_ids, x_users, x_follows, x_posts] 
 
 
-def get_pornhub() -> list[int | list[requests.Response]]:
+def get_pornhub(pornhub_length: int) -> list[list[requests.Response] | list[str]]:
   """API responses for Pornhub. 
-  Return [pornhub_length, pornhub_responses], where `pornhub_length` is the number of videos
-  that were requested and `pornhub_responses` is `list[requests.Response]`."""
-  url = "https://pornhub2.p.rapidapi.com/v2/search"
-  pornhub_length = 10
-  pornhub_responses: list[requests.Response] = []
+  Return [pornhub_length, video_search, pornstars], where `pornhub_length` is the number of videos
+  that were requested, `video_search` is `list[requests.Response]`, and `pornstars` is
+  `list[requests.Response]`."""
+
+  video_search: list[requests.Response] = []
+  # Here, we only search for pornstars. 
+  url = "https://pornhub2.p.rapidapi.com/v2/stars_detailed"
+
+  querystring = {"offset":"0","limit":str(pornhub_length)}
+  headers = {
+    "x-rapidapi-key": get_auth('pornhub_key.txt'),
+    "x-rapidapi-host": "pornhub2.p.rapidapi.com",
+    "Content-Type": "application/json"
+  }
+  # Here, we process the request. We make it into a list of strings. 
+  stars_response: list[dict[str,str]] = requests.get(url, headers=headers, params=querystring).json().get('stars')
+  pornstars: list[str] = []
+  for star in stars_response:
+    pornstars.append(star['star_name']) 
+  # Now, we fetch a list of videos associated with these stars. 
   for _ in range(pornhub_length):
-    querystring = {"search":"oiled","page":"1","period":"weekly","ordering":"newest","thumbsize":"small"}
+    url = "https://pornhub2.p.rapidapi.com/v2/search"
+    querystring = {"search":"oiled",
+                  "page":"1",
+                  "period":"weekly",
+                  "stars":pornstars,
+                  "ordering":"newest",
+                  "thumbsize":"small"}
     headers = {
       "x-rapidapi-key": get_auth('pornhub_key.txt'),
       "x-rapidapi-host": "pornhub2.p.rapidapi.com",
       "Content-Type": "application/json"
     }
     response = requests.get(url, headers=headers, params=querystring)
-    pornhub_responses.append(response)
-  return [pornhub_length, pornhub_responses]
+    video_search.append(response)
+  # Finally, we are ready to return.
+  return [video_search, pornstars]
 
 
 """Create the app and make db commands."""
@@ -183,18 +204,6 @@ def close_db(error):
 
 """Create utility functions."""
 
-def bluesky_follows_to_undirected_graph(all_follows: dict[str, list[str]], all_posts: dict[str, list[str]]):
-  """Convert the database file (follows) into a csv.
-  The csv represents an undirected and simple graph. Edge weight is 2."""
-  with get_db() as db:
-    # Here we get a list of the user ids.
-    cur = db.execute('SELECT id, col_head_users FROM first_dim_for_bluesky')
-    results: list[str] = cur.fetchall()
-    users: list[str] = [row[1] for row in results]
-    # Now, we get the follows of each user as a list. 
-    for user in users:
-      cur = db.execute('SELECT')
-      pass
 
 
 @app.route('/', methods=['GET'])
@@ -358,7 +367,7 @@ def x():
   # So we begin right here with creating item objects and storing those in lists. 
   if request.method == 'GET':
     init_db()
-    package: list = get_x()
+    package: list = get_x(10) # return, at most, 10 responses.
     x_user_ids: list[str] = package[0] 
     x_users: dict[str, str] = package[1] 
     x_follows: dict[str, list[str]] = package[2] 
@@ -457,9 +466,10 @@ def pornhub():
   """
   if request.method == 'GET':
     init_db()
-    package: list = get_pornhub()
-    pornhub_length: int = package[0] 
-    pornhub_responses: list[requests.Response] = package[1]
+    pornhub_length: int = 10
+    package: list = get_pornhub(pornhub_length) # return, at most, 10 pornstars.
+    video_search: list[requests.Response] = package[0] 
+    pornstars: list[str] = package[1]
     url = "https://pornhub2.p.rapidapi.com/v2/video_by_id"
     # These are our return values. Each represent a column of the CSV we want to create with this
     # function.
@@ -470,7 +480,7 @@ def pornhub():
     with get_db() as db:
       for i in range(pornhub_length):
         # We're extracting the video ID now.
-        raw: dict[str, str] = pornhub_responses[i].json().get('data').get('videos')[i]
+        raw: dict[str, str] = video_search[i].json().get('data').get('videos')[i]
         video_id: str = raw['video_id']
         video_ids.append(video_id)
         # Now, we're searching for this video using its ID. 
@@ -491,8 +501,8 @@ def pornhub():
           'type' : '"type:video_id"',
           'item_id': encase('"', f'item_id:{str(i)}')
         })
-        db.execute('INSERT INTO first_dim_for_pornhub (col_head_tags, col_head_title_text) VALUES (?, ?)',
-                  ['head', str(insertion)])
+        db.execute('INSERT INTO first_dim_for_pornhub (col_head_tags, col_head_title_text, col_head_pornstar) VALUES (?, ?, ?)',
+                  ['head', str(insertion), encase('"', pornstars[i])])
     # Next, we handle the second dimension.
     # We use the ids gathered before to search for title and tags. 
     # We make a request for each iteration.
@@ -525,3 +535,23 @@ def pornhub():
     return render_template('pornhub.html', identifiers='identifiers')
   return render_template('pornhub.html')
 
+"""Functions for returning the csv."""
+
+@app.route('/get_pornhub_csv', methods=['GET'])
+def get_pornhub_csv():
+  """Convert the database file into a csv. Tracks follows. 
+  The csv represents an undirected and simple graph. Edge weight is 2."""
+  # First, we open the database.
+  # We are gathering a source and target for each row.
+  # We gather a list; each element represents a single cell of the column
+  # in question.
+  with get_db() as db:
+    cur = db.execute("SELECT col_head_title_text FROM first_dim_for_pornhub")
+    f = cur.fetchall()
+    l: list[str] = [row[0] for row in f]
+    final: list[dict[str,str]] = []
+    # So here we make that list. Each element resembles an insertion object
+    # ,being a dict. 
+    for e in l:
+      final.append(extract(e))
+  return render_template('bluesky.html')
