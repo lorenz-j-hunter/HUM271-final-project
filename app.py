@@ -1,7 +1,7 @@
 import os, time, requests  # pyright: ignore[reportMissingModuleSource]
 from utility.classes import item
 from sqlite3 import dbapi2 as sqlite3
-from flask import Flask, render_template, g, request
+from flask import Flask, render_template, g, request, url_for, redirect
 from utility.utilities import get_auth, encase, extract
 import csv
 
@@ -24,7 +24,7 @@ def get_bluesky(bluesky_length: int) -> dict[str, list[dict[str, str]]]:
   actors_list: list[requests.Response] = []
   while len(actors_list) <= bluesky_length:
     params: dict[str, str | int] = {
-      "q" : 'lang:en a e i o u',
+      "q" : 'a',
       "limit" : 1 
     }
     if cursor:
@@ -213,7 +213,7 @@ def main():
 
 @app.route('/bluesky', methods=['POST', 'GET'])
 def bluesky():
-  """Open the route which uses the bluesky api. 
+  """Open the route which uses the bluesky api.
   - Here, we gather the info needed to create a CSV
   - We also store the data we fetch in a database.
   - The raw data is sent as arguments into an HTML file, while
@@ -272,8 +272,8 @@ def bluesky():
         insertion: item = item({
           'data' : encase('#', f'data:{post_response.json().get('posts')[i].get('uri')}'),
           'did' : encase('#', f'did:{identifier}'),
-          'platform' : '"platform:bluesky"',
-          'type' : '"type:posts"',
+          'platform' : encase('#', 'platform:bluesky'),
+          'type' : encase('#', 'type:posts'),
           'item_id': encase('#', f'item_id:{str(i)}')
         })
         insertion_list.append(insertion)
@@ -297,8 +297,8 @@ def bluesky():
           insertion: item = item({
             'data' : encase('#', f'data:{follows_response.json().get('follows')[i].get('did')}'),
             'did' : encase('#', f'identifier:{identifier}'),
-            'platform' : '"platform:bluesky"',
-            'type' : '"type:follows"',
+            'platform' : encase('#', 'platform:bluesky'),
+            'type' : encase('#', 'type:follows'),
             'item_id': encase('#', f'item_id:{str(i)}')
           })
           insertion_list.append(insertion)
@@ -315,8 +315,8 @@ def bluesky():
         insertion: item = item({
           'data' : encase('#', f'data:{actors['actors'][actor].get('displayName', 'None')}'), 
           'did' : encase('#', f'did:{actors['actors'][actor].get('did', 'None')}'),
-          'platform' : '"platform:bluesky"',
-          'type' : '"type:user"',
+          'platform' : encase('#', 'platform:bluesky'),
+          'type' : encase('#', 'type:user'),
           'item_id': encase('#', f'item_id:{str(actor)}')
         }) 
         db.execute('INSERT INTO first_dim_for_bluesky (col_head_users, col_head_genders, col_head_follows, col_head_posts) VALUES (?, ?, ?, ?)',
@@ -526,9 +526,9 @@ def pornhub():
         for e in tags:
           tag_insertion: item = item({
             'data': encase('#', f'tag_name:{e.get('tag_name', '"None"')}'),
-            'did': '"did:None"',
-            'platform': '"platform:pornhub"',
-            'type': '"type:tag"',
+            'did': encase('#', 'did:None'),
+            'platform': encase('#', 'platform:pornhub'),
+            'type': encase('#', 'type:tag'),
             'item_id': encase('#', f'item_id:{str(item_id)}')
           })
           db.execute('INSERT INTO second_dim_for_pornhub (col_len_tags) VALUES (?)',
@@ -539,6 +539,79 @@ def pornhub():
   return render_template('pornhub.html')
 
 """Functions for returning the csv."""
+
+@app.route('/get_bluesky_csv', methods=['GET'])
+def get_bluesky_csv():
+  """Convert the database file into a csv. 
+  The csv represents an undirected and simple graph."""  
+  consolidated: list[dict[str,list[str]]] = []
+  with get_db() as db:
+    # We open the first dimension here. The only column opened is the one
+    # with one dimension.
+    cur = db.execute('SELECT col_head_users FROM first_dim_for_bluesky')
+    f = cur.fetchall()
+    user_data: list[str] = [row[0] for row in f]
+    # Now, we extract from this. We put each cell in a dict.
+    # This is so that the data inside can be used to gather data
+    # on the user later.
+    for item_id in range(len(user_data)):
+      cur = db.execute('SELECT col_len_follows, col_len_posts FROM second_dim_for_bluesky WHERE id == (?)',
+                       [item_id])
+      f = cur.fetchall()
+      follows: list[str] = [row[0] for row in f]
+      posts: list[str] = [row[1] for row in f]
+      consolidated.append(dict({
+        'datum': [str(item(extract(user_data[item_id])))],
+        'follows': follows,
+        'posts': posts
+      }))
+  # We write to the file now.
+  # The mapping is surjective if the codomain is 'users' and domain is 'follows/posts', so
+  # we loop by user and then insert all of their follows or posts. 
+  with open('../csvfiles/bluesky.csv', 'w', newline='\n') as csvfile:
+    field_names = ['user', 'follows', 'posts']
+    writer = csv.DictWriter(csvfile, fieldnames=field_names)
+    writer.writeheader()
+    for item_id in range(len(user_data)):
+      follows: list[str] = consolidated[item_id].get('follows', [])
+      posts: list[str] = consolidated[item_id].get('posts', [])
+      # case 1: number of follows > number of posts
+      if len(follows) > len(posts):
+        for i in range(len(posts)):
+          writer.writerow({
+            'user': user_data[item_id],
+            'follows': follows[i],
+            'posts': posts[i] 
+          })
+        for i in range(len(posts), len(follows)):
+          writer.writerow({
+            'user': user_data[item_id],
+            'follows': follows[i],
+            'posts': 'None' 
+          })
+      # case 2: number of follows < number of posts
+      elif len(posts) > len(follows):
+        for i in range(len(follows)):
+          writer.writerow({
+            'user': user_data[item_id],
+            'follows': follows[i],
+            'posts': posts[i] 
+          })
+        for i in range(len(follows), len(posts)):
+          writer.writerow({
+            'user': user_data[item_id],
+            'follows': 'None',
+            'posts': posts[i] 
+          })
+      # case 3: number of follows == number of posts
+      elif len(posts) == len(follows):
+        for i in range(len(follows)):
+          writer.writerow({
+            'user': user_data[item_id],
+            'follows': follows[i],
+            'posts': posts[i] 
+          })
+  return render_template('bluesky.html') 
 
 @app.route('/get_x_csv', methods=['GET'])
 def get_x_csv():
@@ -576,7 +649,6 @@ def get_x_csv():
         'follows': follows_data,
         'posts': posts_data
       }))
-      print(consolidated, '\n\n')
   # Now it comes down to making a csv out of this extracted and consolidated data.
   # For each user, we list all follows and posts. 
   # This is a surjective operation, and most of the rows for column 'users' will be copies.
