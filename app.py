@@ -379,19 +379,21 @@ def x():
         user_insertion: item = item({
           'data': encase('#', f'data:{x_users[user]}'), 
           'did': encase('#', f'did:{user}'),
-          'platform': '"platform:x"',
-          'type': '"type:users"',
-          'item_id': '"item_id:None"'
+          'platform': encase('#', 'platform:x'),
+          'type': encase('#', 'type:users'),
+          'item_id': encase('#', f'item_id:{item_id}')
         })
         # Two-dimensional data fields have 'head' as their entry in the first dimension.
         db.execute('INSERT INTO first_dim_for_x (col_head_users, col_head_follows, col_head_posts) VALUES (?, ?, ?)',
                   [str(user_insertion), 'head', 'head'])
         db.commit()
+        item_id += 1
       # Here we begin adding to the second dimension, starting with follows. 
       # The database format is exactly the same here as it is for
       # def bluesky(). Each person's follows or posts is printed to the database column,
       # all with an item_id unique to that person. The person in question can be
       # identified using the 'did' element within each entry. 
+      item_id: int = 0
       for user in x_user_ids:
         follows_list = x_follows[user]
         posts_list = x_posts[user]
@@ -408,8 +410,8 @@ def x():
             follows_insertion: item = item({
               'data': encase('#', f'data:{str(follows_list[i])}'), # if it is None, it will be put in like that
               'did': encase('#', f'did:{user}'), 
-              'platform': '"platform:x"',
-              'type': '"type:follows"',
+              'platform': encase('#', 'platform:x'),
+              'type': encase('#', 'type:follows'),
               'item_id': encase('#', f'item_id:{str(item_id)}') 
             })
             db.execute("INSERT INTO second_dim_for_x (col_len_follows, col_len_posts, item_id) VALUES (?, ?, ?)",
@@ -420,8 +422,8 @@ def x():
             posts_insertion: item = item({
               'data': encase('#', str(posts_list[i])),
               'did': encase('#', user),
-              'platform': '"x"',
-              'type': '"posts"',
+              'platform': encase('#', 'x'),
+              'type': encase('#', 'posts'),
               'item_id': encase('#', str(item_id))
             })
             db.execute('UPDATE second_dim_for_x SET col_len_posts = (?) WHERE item_id == (?)',
@@ -433,8 +435,8 @@ def x():
             posts_insertion: item = item({
               'data': encase('#', f'data:{str(posts_list[i])}'), # if it is None, it will be put in like that
               'did': encase('#', f'did:{user}'),
-              'platform': '"platform:x"',
-              'type': '"type:posts"',
+              'platform': encase('#', 'platform:x'),
+              'type': encase('#', 'type:posts'),
               'item_id': encase('#', f'item_id:{str(item_id)}') 
             })
             db.execute("INSERT INTO second_dim_for_x (col_len_follows, col_len_posts, item_id) VALUES (?, ?, ?)",
@@ -445,8 +447,8 @@ def x():
             follows_insertion: item = item({
               'data': encase('#', f'data:{str(follows_list[i])}'),
               'did': encase('#', f'did:{user}'),
-              'platform': '"platform:x"',
-              'type': '"type:posts"',
+              'platform': encase('#', 'platform:x'),
+              'type': encase('#', 'type:posts'),
               'item_id': encase('#', f'item_id:{str(item_id)}')
             })
             db.execute('UPDATE second_dim_for_x SET col_len_follows = (?) WHERE item_id == (?)',
@@ -538,10 +540,103 @@ def pornhub():
 
 """Functions for returning the csv."""
 
+@app.route('/get_x_csv', methods=['GET'])
+def get_x_csv():
+  """Convert the database file into a csv. 
+  The csv represents an undirected and simple graph.""" 
+  # We first open the first dimension and gather the user data only.
+  # Because the other two columns (follows and posts) are two-dimensional,
+  # they will be fetched in a different scope.
+  consolidated: list[dict[str,list[str]]] = []
+  with get_db() as db:
+    cur = db.execute('SELECT col_head_users FROM first_dim_for_x') 
+    f = cur.fetchall()
+    user_data: list[str] = [row[0] for row in f]
+    # Now we do get follows and posts.
+    # We want each list of follows and posts to still be associated with the user
+    # in question for this data type, so we will append a list do 
+    cur = db.execute('SELECT col_len_follows, col_len_posts FROM second_dim_for_x')
+    f = cur.fetchall()
+    follows_data: list[str] = []
+    posts_data: list[str] = []
+    for datum in user_data:
+      user_item_id: str = datum.split('#_#')[4].strip('#')
+      for row in f:
+        follow: item = item(extract(row[0])) #keyError here
+        post: str = row[1]
+        # Only in the case that the user is the one we want to get follows, posts from do we
+        # fetch them, is what this means. For each user, we loop through the entire second_dim
+        # database. Each time, we pick the rows which have the user's item_id on them.
+        if follow.get('item_id') == user_item_id:
+          follows_data.append(str(follow))
+          posts_data.append(str(post))
+      # Now, we add these newly populated lists `follows_data`, etc into the `consolidated`. 
+      consolidated.append(dict({
+        'datum': [str(item(extract(datum)))],
+        'follows': follows_data,
+        'posts': posts_data
+      }))
+      print(consolidated, '\n\n')
+  # Now it comes down to making a csv out of this extracted and consolidated data.
+  # For each user, we list all follows and posts. 
+  # This is a surjective operation, and most of the rows for column 'users' will be copies.
+  # If there are more posts than follows, the `follows` column will have row 'None' once
+  # all of the follows have been printed. Likewise if there are more follows than posts. 
+  # Now, we open a flat file and insert to it. 
+  with open('../csvfiles/x.csv', 'w', newline='\n') as csvfile:
+    field_names = ['user', 'did', 'follows', 'posts']
+    writer = csv.DictWriter(csvfile, fieldnames=field_names)
+    writer.writeheader()
+    for elem in consolidated:
+      # Here, we need to add a for loop. This will loop through the follows/posts.
+      # For each follow/post, we write to the file.
+      # Case 1: Number of user's follows > number of user's posts.
+      if len(elem['follows']) > len(elem['posts']):
+        for i in range(len(elem['posts'])):
+          writer.writerow({
+            'user': elem.get('datum')[0].split('#_#')[0].strip('#'),  # type: ignore
+            'did': elem.get('datum')[0].split('#_#')[1].strip('#'),  # pyright: ignore[reportOptionalSubscript]
+            'follows': elem['follows'][i].split('#_#')[0].strip('#'),
+            'posts': elem['posts'][i].split('#_#')[0].strip('#')
+          })
+        for i in range(len(elem['posts']), len(elem['follows'])):
+          writer.writerow({
+            'user': elem.get('datum').split('#_#')[0].strip('#'), # type: ignore
+            'did': elem.get('datum').split('#_#')[1].strip('#'), # type: ignore
+            'follows': elem['follows'][i],
+            'posts': '"None"' 
+          })
+      # case 2: Number of user's posts > number of user's follows
+      elif len(elem['posts']) > len(elem['follows']):
+        for i in range(len(elem['follows'])):
+          writer.writerow({
+            'user': elem.get('datum').split('#_#')[0].strip('#'), # type: ignore
+            'did': elem.get('datum').split('#_#')[1].strip('#'), # type: ignore
+            'follows': elem['follows'][i],
+            'posts': elem['posts'][i]
+          })
+        for i in range(len(elem['posts']), len(elem['follows'])):
+          writer.writerow({
+            'user': elem.get('datum').split('#_#')[0].strip('#'), # type: ignore
+            'did': elem.get('datum').split('#_#')[1].strip('#'), # type: ignore
+            'follows': '"None"',
+            'posts': elem['posts'][i] 
+          })
+      # case 3: Number of user's posts == number of user's follows
+      else:
+        for i in range(len(elem['follows'])):
+          writer.writerow({
+            'user': elem.get('datum').split('#_#')[0].strip('#'), # type: ignore
+            'did': elem.get('datum').split('#_#')[1].strip('#'), # type: ignore
+            'follows': elem['follows'][i],
+            'posts': elem['posts'][i]
+          })
+  return render_template('x.html')
+
 @app.route('/get_pornhub_csv', methods=['GET'])
 def get_pornhub_csv():
-  """Convert the database file into a csv. Tracks follows. 
-  The csv represents an undirected and simple graph. Edge weight is 2."""
+  """Convert the database file into a csv. 
+  The csv represents an undirected and simple graph."""
   # First, we open the database.
   # We are gathering a source and target for each row.
   # We gather a list; each element represents a single cell of the column

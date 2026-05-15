@@ -20,6 +20,17 @@ class item:
       self.item_id=args['item_id']
   def __str__(self):
       return self.data + '_' + self.did + '_' + self.platform + '_' + self.type + '_' + self.item_id
-    
-class bluesky_response:
-  actors: list[dict[str, str]] = [] 
+  def get(self, item: str) -> str | None:
+    """A `get` method for this class."""
+    if item == 'data':
+      return self.data
+    elif item == 'did':
+      return self.did
+    elif item == 'platform':
+      return self.platform
+    elif item == 'type':
+      return self.type
+    elif item == 'item_id':
+      return self.item_id
+    else:
+      return None
