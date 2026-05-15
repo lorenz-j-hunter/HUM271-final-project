@@ -1,160 +1,9 @@
-import os, time, requests  # pyright: ignore[reportMissingModuleSource]
-from utility.classes import item
+import os, requests, csv  # pyright: ignore[reportMissingModuleSource
+from utils.classes import item
+from flask import Flask, render_template, g, request
 from sqlite3 import dbapi2 as sqlite3
-from flask import Flask, render_template, g, request, url_for, redirect
-from utility.utilities import get_auth, encase, extract
-import csv
-
-def get_bluesky(bluesky_length: int) -> dict[str, list[dict[str, str]]]:
-  """API responses from Bluesky.
-  `JSON` bodies are collected, then condensed into a dict.
-  Return actors, where `actors` is the schema of the
-  collection of bluesky responses.
-
-  *Arguments* 
-  bluesky_length (int) : the number of actors to query for.
-  
-  *Return value*
-  actors (dict[str, list[dict[str,str]]]) : A dict that resembles the schema from docs.bsky.com
-  for this endpoint."""
-  # This is a 'searchActors' query only.
-  endpoint = "https://public.api.bsky.app/xrpc/app.bsky.actor.searchActors"
-  # We paginate through the search list until the `actors` is filled. 
-  cursor = None 
-  actors_list: list[requests.Response] = []
-  while len(actors_list) <= bluesky_length:
-    params: dict[str, str | int] = {
-      "q" : 'a',
-      "limit" : 1 
-    }
-    if cursor:
-      params["cursor"] = cursor
-    # This is the response created with this endpoint and their parameters.
-    response = requests.get(endpoint, params)
-    cursor = response.json().get('cursor')
-    actors_list.append(response)
-  # Here, we compress the list of responses into a single response. 
-  actors: dict[str, list[dict[str, str]]] = {
-    'actors': []
-  } 
-  # Finally, we return the schema.
-  # This is the schema that can be found on docs.bsky.com for this endpoint.
-  # However, we only return one element of the schema: 'actors'.
-  # That's like returning only one pair of a normal `requests.Response`. 
-  for actor in actors_list:
-    if len(actor.json().get('actors')) > 0: # Some pages do not have any actors on them ... ? 
-      actors['actors'].append(actor.json().get('actors')[0]) 
-  return actors
-
-"""Global API responses for X."""
-def get_x(x_length: int) -> list[list[str] | dict[str, str] | dict[str, list]]:
-  """API responses from X.
-  Return [x_user_ids, x_users, x_follows, x_posts], where `x_user_ids` is `list[str],
-  `x_users` is `dict[str, str]`, `x_follows` is `dict[str, list[str]]`, and
-  `x_posts` is `dict[str, list[str]]`."""
-  # Just so you know, we only get these in order to get author ids. 
-  x_posts_url = "https://api.x.com/2/tweets/search/all"
-  x_posts_headers = {"Authorization": f"Bearer {get_auth('x_bearer_token.txt')}"}
-  x_posts_params = {
-    "query": "lang:en a e i o u",
-    "start_time": "2020-01-01T00:00:00Z",
-    "end_time": "2026-01-01T00:00:00Z",
-    "max_results": x_length,
-    "tweet.fields": ['author_id'],
-    "user.fields": ['username']
-  }
-  x_posts_response = requests.get(x_posts_url, headers=x_posts_headers, params=x_posts_params)
-  x_user_ids: list[str] = []
-  for post in x_posts_response.json().get('data'):
-    x_user_ids.append(post.get('author_id'))
-
-  # Now, we map the user ids to the usernames that they bear. 
-  # We need to do this before we call requests.
-
-  x_users: dict[str, str] = {}
-  for id in x_user_ids:
-    url = f"https://api.x.com/2/users/{id}"
-    headers = {"Authorization": f"Bearer {get_auth('x_bearer_token.txt')}"}
-    params = {"user.fields": ['username']}
-    response = requests.get(url, headers=headers, params=params)
-    x_users[id] = response.json().get('data').get('username')
-
-  # Now, we get follow data.
-  x_follows: dict[str, list[str]] = {}
-  for id in x_user_ids:
-    # Make the request.
-    url = f"https://api.x.com/2/users/{id}/following"
-    headers = {"Authorization": f"Bearer {get_auth('x_bearer_token.txt')}"} 
-    params = {"max_results": 10}
-    response = requests.get(url, headers=headers, params=params)
-    # Map it to the user.
-    json_list: list[dict[str, str]] = response.json().get('data')
-    real_list: list[str] = []
-    for element in json_list:
-      real_list.append(element.get('id')) # type: ignore
-    x_follows[id] = real_list
-
-  # Now, we get a list of posts for each user.
-  x_posts: dict[str, list[str]] = {}
-  for id in x_user_ids:
-    time.sleep(10) # rate limits.
-    # Make the request.
-    url = f"https://api.x.com/2/users/{id}/tweets"
-    headers = {"Authorization": f"Bearer {get_auth('x_bearer_token.txt')}"}
-    response = requests.get(url, headers=headers)
-    # Map it to the user.
-    if response.json().get('data') is None:
-      continue
-    else:
-      json_list: list[dict[str, str]] = response.json().get('data')
-      real_list: list[str] = []
-      for element in json_list:
-        real_list.append(element.get('text')) # type: ignore
-      x_posts[id] = real_list
-
-  return [x_user_ids, x_users, x_follows, x_posts] 
-
-
-def get_pornhub(pornhub_length: int) -> list[list[requests.Response] | list[str]]:
-  """API responses for Pornhub. 
-  Return [pornhub_length, video_search, pornstars], where `pornhub_length` is the number of videos
-  that were requested, `video_search` is `list[requests.Response]`, and `pornstars` is
-  `list[requests.Response]`."""
-
-  video_search: list[requests.Response] = []
-  # Here, we only search for pornstars. 
-  url = "https://pornhub2.p.rapidapi.com/v2/stars_detailed"
-
-  querystring = {"offset":"0","limit":str(pornhub_length)}
-  headers = {
-    "x-rapidapi-key": get_auth('pornhub_key.txt'),
-    "x-rapidapi-host": "pornhub2.p.rapidapi.com",
-    "Content-Type": "application/json"
-  }
-  # Here, we process the request. We make it into a list of strings. 
-  stars_response: list[dict[str,str]] = requests.get(url, headers=headers, params=querystring).json().get('stars')
-  pornstars: list[str] = []
-  for star in stars_response:
-    pornstars.append(star['star_name']) 
-  # Now, we fetch a list of videos associated with these stars. 
-  for _ in range(pornhub_length):
-    url = "https://pornhub2.p.rapidapi.com/v2/search"
-    querystring = {"search":"oiled",
-                  "page":"1",
-                  "period":"weekly",
-                  "stars":pornstars,
-                  "ordering":"newest",
-                  "thumbsize":"small"}
-    headers = {
-      "x-rapidapi-key": get_auth('pornhub_key.txt'),
-      "x-rapidapi-host": "pornhub2.p.rapidapi.com",
-      "Content-Type": "application/json"
-    }
-    response = requests.get(url, headers=headers, params=querystring)
-    video_search.append(response)
-  # Finally, we are ready to return.
-  return [video_search, pornstars]
-
+from utils.utils import get_auth, encase, extract
+from logic import originals as responses
 
 """Create the app and make db commands."""
 app = Flask(__name__)
@@ -165,7 +14,6 @@ app.config.update(dict(
     SECRET_KEY=get_auth('secret_key.txt'),
 ))
 app.config.from_envvar('HUM271_SETTINGS', silent=True)
-
 def connect_db():
     """Connects to the specific database."""
     rv = sqlite3.connect(app.config['DATABASE'])
@@ -203,8 +51,8 @@ def close_db(error):
     if hasattr(g, 'sqlite_db'):
         g.sqlite_db.close()
 
-"""Create utility functions."""
 
+"""Begin endpoints for html pages"""
 
 
 @app.route('/', methods=['GET'])
@@ -230,7 +78,7 @@ def bluesky():
       db.execute('DELETE FROM second_dim_for_bluesky')
       db.commit()
     bluesky_length = 15 # this is arbitrary
-    actors: dict[str, list[dict[str, str]]] = get_bluesky(bluesky_length) 
+    actors: dict[str, list[dict[str, str]]] = responses.get_bluesky(bluesky_length) 
     # Now we define some common variables. 
     # `identifiers` is a list of handles of users.
     # This is on same dimension as 'bluesky_length' but not for 'follows_limit'.
@@ -319,8 +167,8 @@ def bluesky():
           'type' : encase('#', 'type:user'),
           'item_id': encase('#', f'item_id:{str(actor)}')
         }) 
-        db.execute('INSERT INTO first_dim_for_bluesky (col_head_users, col_head_genders, col_head_follows, col_head_posts) VALUES (?, ?, ?, ?)',
-                  [str(insertion), 'head', 'head', 'head'])
+        db.execute('INSERT INTO first_dim_for_bluesky (users) VALUES (?)',
+                  [str(insertion)])
         db.commit()
         # Now we add to the second dimension for follows and posts. 
         # First we insert into both columns for follows. Then, we update the rows
@@ -329,7 +177,7 @@ def bluesky():
         for _ in range(follows_limit):
           f_insertion_list: list[item] = all_follows[identifiers[actor]]
           for e in range(len(f_insertion_list)):
-            db.execute('INSERT INTO second_dim_for_bluesky (col_len_follows, col_len_posts) VALUES (?, ?)',
+            db.execute('INSERT INTO second_dim_for_bluesky (follows, posts) VALUES (?, ?)',
                       [str(f_insertion_list[e]), 'None'])
             db.commit()
         for _ in range(posts_limit):
@@ -337,13 +185,13 @@ def bluesky():
           p_insertion_list: list[item] = all_posts[identifiers[actor]]
           # We first update what has already been inserted.
           for e in range(f_insertion_list_len):
-            db.execute('UPDATE second_dim_for_bluesky SET col_len_posts = (?) WHERE id == (?)',
+            db.execute('UPDATE second_dim_for_bluesky SET posts = (?) WHERE id == (?)',
                         [str(p_insertion_list[e]), e])
             db.commit()
           # Then, we continue to insert if there are more posts than follows. 
           if len(p_insertion_list) > f_insertion_list_len:
             for e in range(f_insertion_list_len, len(p_insertion_list)):
-              db.execute('INSERT INTO second_dim_for_bluesky (col_len_follows, col_len_posts) VALUES (?, ?)',
+              db.execute('INSERT INTO second_dim_for_bluesky (follows, posts) VALUES (?, ?)',
                           ['None', str(p_insertion_list[e])])
               db.commit()
       # We will pull data from another function in order to display the results.
@@ -368,7 +216,7 @@ def x():
   # So we begin right here with creating item objects and storing those in lists. 
   if request.method == 'GET':
     init_db()
-    package: list = get_x(10) # return, at most, 10 responses.
+    package: list = responses.get_x(10) # return, at most, 10 responses.
     x_user_ids: list[str] = package[0] 
     x_users: dict[str, str] = package[1] 
     x_follows: dict[str, list[str]] = package[2] 
@@ -384,8 +232,8 @@ def x():
           'item_id': encase('#', f'item_id:{item_id}')
         })
         # Two-dimensional data fields have 'head' as their entry in the first dimension.
-        db.execute('INSERT INTO first_dim_for_x (col_head_users, col_head_follows, col_head_posts) VALUES (?, ?, ?)',
-                  [str(user_insertion), 'head', 'head'])
+        db.execute('INSERT INTO first_dim_for_x (users) VALUES (?)',
+                  [str(user_insertion)])
         db.commit()
         item_id += 1
       # Here we begin adding to the second dimension, starting with follows. 
@@ -414,7 +262,7 @@ def x():
               'type': encase('#', 'type:follows'),
               'item_id': encase('#', f'item_id:{str(item_id)}') 
             })
-            db.execute("INSERT INTO second_dim_for_x (col_len_follows, col_len_posts, item_id) VALUES (?, ?, ?)",
+            db.execute("INSERT INTO second_dim_for_x (follows, posts, item_id) VALUES (?, ?, ?)",
                       [str(follows_insertion), '"None"', str(item_id)]) # To know which to update , we keep track of the item_id.
             db.commit()
           # Update posts_list
@@ -426,7 +274,7 @@ def x():
               'type': encase('#', 'posts'),
               'item_id': encase('#', str(item_id))
             })
-            db.execute('UPDATE second_dim_for_x SET col_len_posts = (?) WHERE item_id == (?)',
+            db.execute('UPDATE second_dim_for_x SET posts = (?) WHERE item_id == (?)',
                         [str(posts_insertion), str(item_id)])
             db.commit()
         else: # len_posts_list > len_follows_list
@@ -439,7 +287,7 @@ def x():
               'type': encase('#', 'type:posts'),
               'item_id': encase('#', f'item_id:{str(item_id)}') 
             })
-            db.execute("INSERT INTO second_dim_for_x (col_len_follows, col_len_posts, item_id) VALUES (?, ?, ?)",
+            db.execute("INSERT INTO second_dim_for_x (follows, posts, item_id) VALUES (?, ?, ?)",
                         ['"None"', str(posts_insertion), str(item_id)])
             db.commit()
           # Update for follows_list
@@ -451,7 +299,7 @@ def x():
               'type': encase('#', 'type:posts'),
               'item_id': encase('#', f'item_id:{str(item_id)}')
             })
-            db.execute('UPDATE second_dim_for_x SET col_len_follows = (?) WHERE item_id == (?)',
+            db.execute('UPDATE second_dim_for_x SET follows = (?) WHERE item_id == (?)',
                         [str(follows_insertion), str(item_id)])
             db.commit()
         item_id += 1
@@ -470,7 +318,7 @@ def pornhub():
   if request.method == 'GET':
     init_db()
     pornhub_length: int = 10
-    package: list = get_pornhub(pornhub_length) # return, at most, 10 pornstars.
+    package: list = responses.get_pornhub(pornhub_length) # return, at most, 10 pornstars.
     video_search: list[requests.Response] = package[0] 
     pornstars: list[str] = package[1]
     url = "https://pornhub2.p.rapidapi.com/v2/video_by_id"
@@ -504,8 +352,8 @@ def pornhub():
           'type' : '"type:video_id"',
           'item_id': encase('#', f'item_id:{str(i)}')
         })
-        db.execute('INSERT INTO first_dim_for_pornhub (col_head_tags, col_head_title_text, col_head_pornstar) VALUES (?, ?, ?)',
-                  ['head', str(insertion), encase('#', pornstars[i])])
+        db.execute('INSERT INTO first_dim_for_pornhub (title, pornstar) VALUES (?, ?)',
+                  [str(insertion), encase('#', pornstars[i])])
     # Next, we handle the second dimension.
     # We use the ids gathered before to search for title and tags. 
     # We make a request for each iteration.
@@ -531,7 +379,7 @@ def pornhub():
             'type': encase('#', 'type:tag'),
             'item_id': encase('#', f'item_id:{str(item_id)}')
           })
-          db.execute('INSERT INTO second_dim_for_pornhub (col_len_tags) VALUES (?)',
+          db.execute('INSERT INTO second_dim_for_pornhub (tags) VALUES (?)',
                     [str(tag_insertion)])
           db.commit()
         item_id += 1
@@ -548,14 +396,14 @@ def get_bluesky_csv():
   with get_db() as db:
     # We open the first dimension here. The only column opened is the one
     # with one dimension.
-    cur = db.execute('SELECT col_head_users FROM first_dim_for_bluesky')
+    cur = db.execute('SELECT users FROM first_dim_for_bluesky')
     f = cur.fetchall()
     user_data: list[str] = [row[0] for row in f]
     # Now, we extract from this. We put each cell in a dict.
     # This is so that the data inside can be used to gather data
     # on the user later.
     for item_id in range(len(user_data)):
-      cur = db.execute('SELECT col_len_follows, col_len_posts FROM second_dim_for_bluesky WHERE id == (?)',
+      cur = db.execute('SELECT follows, posts FROM second_dim_for_bluesky WHERE id == (?)',
                        [item_id])
       f = cur.fetchall()
       follows: list[str] = [row[0] for row in f]
@@ -622,13 +470,13 @@ def get_x_csv():
   # they will be fetched in a different scope.
   consolidated: list[dict[str,list[str]]] = []
   with get_db() as db:
-    cur = db.execute('SELECT col_head_users FROM first_dim_for_x') 
+    cur = db.execute('SELECT users FROM first_dim_for_x') 
     f = cur.fetchall()
     user_data: list[str] = [row[0] for row in f]
     # Now we do get follows and posts.
     # We want each list of follows and posts to still be associated with the user
     # in question for this data type, so we will append a list do 
-    cur = db.execute('SELECT col_len_follows, col_len_posts FROM second_dim_for_x')
+    cur = db.execute('SELECT follows, posts FROM second_dim_for_x')
     f = cur.fetchall()
     follows_data: list[str] = []
     posts_data: list[str] = []
@@ -716,7 +564,7 @@ def get_pornhub_csv():
   consolidated: list[dict[str,str]] = []
   with get_db() as db:
     # We first get the video details...
-    cur = db.execute("SELECT col_head_title_text, col_head_pornstar FROM first_dim_for_pornhub")
+    cur = db.execute("SELECT title, pornstar FROM first_dim_for_pornhub")
     f = cur.fetchall()
     video_data: list[str] = [row[0] for row in f]
     pornstar: list[str] = [row[1] for row in f]
