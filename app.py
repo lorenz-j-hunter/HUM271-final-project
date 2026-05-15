@@ -427,37 +427,38 @@ def get_bluesky_csv():
       if len(follows) > len(posts):
         for i in range(len(posts)):
           writer.writerow({
-            'user': user_data[item_id],
-            'follows': follows[i],
-            'posts': posts[i] 
+            'user': user_data[item_id].split('#_#')[0].strip('#'),
+            'follows': follows[i].split('#_#')[0].strip('#'),
+            'posts': posts[i].split('#_#')[0].strip('#')
           })
         for i in range(len(posts), len(follows)):
           writer.writerow({
-            'user': user_data[item_id],
-            'follows': follows[i],
+            'user': user_data[item_id].split('#_#')[0].strip('#'),
+            'follows': follows[i].split('#_#')[0].strip('#'),
             'posts': 'None' 
           })
       # case 2: number of follows < number of posts
       elif len(posts) > len(follows):
         for i in range(len(follows)):
           writer.writerow({
-            'user': user_data[item_id],
-            'follows': follows[i],
-            'posts': posts[i] 
+            'user': user_data[item_id].split('#_#')[0].strip('#'),
+            'follows': follows[i].split('#_#')[0].strip('#'),
+            'posts': posts[i].split('#_#')[0].strip('#')
           })
         for i in range(len(follows), len(posts)):
           writer.writerow({
-            'user': user_data[item_id],
+            'user': user_data[item_id].split('#_#')[0].strip('#'),
             'follows': 'None',
-            'posts': posts[i] 
+            'posts': posts[i].split('#_#')[0].strip('#')
+
           })
       # case 3: number of follows == number of posts
       elif len(posts) == len(follows):
         for i in range(len(follows)):
           writer.writerow({
-            'user': user_data[item_id],
-            'follows': follows[i],
-            'posts': posts[i] 
+            'user': user_data[item_id].split('#_#')[0].strip('#'),
+            'follows': follows[i].split('#_#')[0].strip('#'),
+            'posts': posts[i].split('#_#')[0].strip('#')
           })
   return render_template('bluesky.html') 
 
