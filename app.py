@@ -120,11 +120,11 @@ def bluesky():
       for i in range(posts_limit):
         # insert an item.
         insertion: item = item({
-          'data' : encase('#', f'data:{post_response.json().get('posts')[i].get('uri')}'),
-          'did' : encase('#', f'did:{identifier}'),
-          'platform' : encase('#', 'platform:bluesky'),
-          'type' : encase('#', 'type:posts'),
-          'item_id': encase('#', f'item_id:{str(i)}')
+          'data' : encase(f'data:{post_response.json().get('posts')[i].get('uri')}'),
+          'did' : encase(f'did:{identifier}'),
+          'platform' : encase('platform:bluesky'),
+          'type' : encase('type:posts'),
+          'item_id': encase(f'item_id:{str(i)}')
         })
         insertion_list.append(insertion)
       all_posts[identifier] = insertion_list
@@ -145,11 +145,11 @@ def bluesky():
         insertion_list: list[item] = []
         for i in range(follows_limit):
           insertion: item = item({
-            'data' : encase('#', f'data:{follows_response.json().get('follows')[i].get('did')}'),
-            'did' : encase('#', f'identifier:{identifier}'),
-            'platform' : encase('#', 'platform:bluesky'),
-            'type' : encase('#', 'type:follows'),
-            'item_id': encase('#', f'item_id:{str(i)}')
+            'data' : encase(f'data:{follows_response.json().get('follows')[i].get('did')}'),
+            'did' : encase(f'identifier:{identifier}'),
+            'platform' : encase('platform:bluesky'),
+            'type' : encase('type:follows'),
+            'item_id': encase(f'item_id:{str(i)}')
           })
           insertion_list.append(insertion)
         all_follows[identifier] = insertion_list 
@@ -163,11 +163,11 @@ def bluesky():
       # We first insert to the first dimension here, then move onto the second dimension.
       for actor in range(bluesky_length): # assume all of these lists are the same length
         insertion: item = item({
-          'data' : encase('#', f'data:{actors['actors'][actor].get('displayName', 'None')}'), 
-          'did' : encase('#', f'did:{actors['actors'][actor].get('did', 'None')}'),
-          'platform' : encase('#', 'platform:bluesky'),
-          'type' : encase('#', 'type:user'),
-          'item_id': encase('#', f'item_id:{str(actor)}')
+          'data' : encase(f'data:{actors['actors'][actor].get('displayName', 'None')}'), 
+          'did' : encase(f'did:{actors['actors'][actor].get('did', 'None')}'),
+          'platform' : encase('platform:bluesky'),
+          'type' : encase('type:user'),
+          'item_id': encase(f'item_id:{str(actor)}')
         }) 
         db.execute('INSERT INTO first_dim_for_bluesky (users) VALUES (?)',
                   [str(insertion)])
@@ -229,11 +229,11 @@ def x():
       item_id: int = 0 # Keep track of the user. 
       for user in x_user_ids:
         user_insertion: item = item({
-          'data': encase('#', f'data:{x_users[user]}'), 
-          'did': encase('#', f'did:{user}'),
-          'platform': encase('#', 'platform:x'),
-          'type': encase('#', 'type:users'),
-          'item_id': encase('#', f'item_id:{item_id}')
+          'data': encase(f'data:{x_users[user]}'), 
+          'did': encase(f'did:{user}'),
+          'platform': encase('platform:x'),
+          'type': encase('type:users'),
+          'item_id': encase(f'item_id:{item_id}')
         })
         # Two-dimensional data fields have 'head' as their entry in the first dimension.
         db.execute('INSERT INTO first_dim_for_x (users) VALUES (?)',
@@ -260,11 +260,11 @@ def x():
           for i in range(len_follows_list):
             # Insert for follows_list
             follows_insertion: item = item({
-              'data': encase('#', f'data:{str(follows_list[i])}'), # if it is None, it will be put in like that
-              'did': encase('#', f'did:{user}'), 
-              'platform': encase('#', 'platform:x'),
-              'type': encase('#', 'type:follows'),
-              'item_id': encase('#', f'item_id:{str(item_id)}') 
+              'data': encase(f'data:{str(follows_list[i])}'), # if it is None, it will be put in like that
+              'did': encase(f'did:{user}'), 
+              'platform': encase('platform:x'),
+              'type': encase('type:follows'),
+              'item_id': encase(f'item_id:{str(item_id)}') 
             })
             db.execute("INSERT INTO second_dim_for_x (follows, posts, item_id) VALUES (?, ?, ?)",
                       [str(follows_insertion), '"None"', str(item_id)]) # To know which to update , we keep track of the item_id.
@@ -272,11 +272,11 @@ def x():
           # Update posts_list
           for i in range(len_posts_list):
             posts_insertion: item = item({
-              'data': encase('#', str(posts_list[i])),
-              'did': encase('#', user),
-              'platform': encase('#', 'x'),
-              'type': encase('#', 'posts'),
-              'item_id': encase('#', str(item_id))
+              'data': encase(str(posts_list[i])),
+              'did': encase(user),
+              'platform': encase('x'),
+              'type': encase('posts'),
+              'item_id': encase(str(item_id))
             })
             db.execute('UPDATE second_dim_for_x SET posts = (?) WHERE item_id == (?)',
                         [str(posts_insertion), str(item_id)])
@@ -285,11 +285,11 @@ def x():
           for i in range(len_posts_list):
             # Insert for posts_list
             posts_insertion: item = item({
-              'data': encase('#', f'data:{str(posts_list[i])}'), # if it is None, it will be put in like that
-              'did': encase('#', f'did:{user}'),
-              'platform': encase('#', 'platform:x'),
-              'type': encase('#', 'type:posts'),
-              'item_id': encase('#', f'item_id:{str(item_id)}') 
+              'data': encase(f'data:{str(posts_list[i])}'), # if it is None, it will be put in like that
+              'did': encase(f'did:{user}'),
+              'platform': encase('platform:x'),
+              'type': encase('type:posts'),
+              'item_id': encase(f'item_id:{str(item_id)}') 
             })
             db.execute("INSERT INTO second_dim_for_x (follows, posts, item_id) VALUES (?, ?, ?)",
                         ['"None"', str(posts_insertion), str(item_id)])
@@ -297,11 +297,11 @@ def x():
           # Update for follows_list
           for i in range(len_follows_list):
             follows_insertion: item = item({
-              'data': encase('#', f'data:{str(follows_list[i])}'),
-              'did': encase('#', f'did:{user}'),
-              'platform': encase('#', 'platform:x'),
-              'type': encase('#', 'type:posts'),
-              'item_id': encase('#', f'item_id:{str(item_id)}')
+              'data': encase(f'data:{str(follows_list[i])}'),
+              'did': encase(f'did:{user}'),
+              'platform': encase('platform:x'),
+              'type': encase('type:posts'),
+              'item_id': encase(f'item_id:{str(item_id)}')
             })
             db.execute('UPDATE second_dim_for_x SET follows = (?) WHERE item_id == (?)',
                         [str(follows_insertion), str(item_id)])
@@ -352,14 +352,14 @@ def pornhub():
         # We grab the title and tags. But remember, since tags is two-dimensional, we 
         # only insert head for that here and then get it later. 
         insertion: item = item({
-          'data' : encase('#', f'video_id:{video_id}'),
+          'data' : encase(f'video_id:{video_id}'),
           'did' : '"did:None"',
           'platform' : '"platform:pornhub"',
           'type' : '"type:video_id"',
-          'item_id': encase('#', f'item_id:{str(i)}')
+          'item_id': encase(f'item_id:{str(i)}')
         })
         db.execute('INSERT INTO first_dim_for_pornhub (title, pornstar) VALUES (?, ?)',
-                  [str(insertion), encase('#', pornstars[i])])
+                  [str(insertion), encase(pornstars[i])])
     # Next, we handle the second dimension.
     # We use the ids gathered before to search for title and tags. 
     # We make a request for each iteration.
@@ -379,11 +379,11 @@ def pornhub():
         # them into the database this way.
         for e in tags:
           tag_insertion: item = item({
-            'data': encase('#', f'tag_name:{e.get('tag_name', '"None"')}'),
-            'did': encase('#', 'did:None'),
-            'platform': encase('#', 'platform:pornhub'),
-            'type': encase('#', 'type:tag'),
-            'item_id': encase('#', f'item_id:{str(item_id)}')
+            'data': encase(f'tag_name:{e.get('tag_name', '"None"')}'),
+            'did': encase('did:None'),
+            'platform': encase('platform:pornhub'),
+            'type': encase('type:tag'),
+            'item_id': encase(f'item_id:{str(item_id)}')
           })
           db.execute('INSERT INTO second_dim_for_pornhub (tags) VALUES (?)',
                     [str(tag_insertion)])
