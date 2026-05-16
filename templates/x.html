@@ -130,13 +130,22 @@
             </form>
           </li>
           <li>
-            <form action="{{url_for('x')}}" method="GET" class="nav-link link-body-emphasis">
-              <button type="submit" class="nav-link active">Get Data</button>
-            </form>           
+            <form action="{{url_for('x')}}" method="GET" class="nav-link link-body-emphasis" onsubmit="activate()">
+              Select Number of Responses 
+              <input type="text" name="x_length">
+              <button type="submit">Submit</button>
+            </form>
           </li>
-          <li id="download">
-            <a class="nav-link" href="../csvfiles/x_csv.csv" download>Download CSV</a>
-          </li>
+          {% if visibility == 'visible' %}
+            <li id="download" style="content-visibility: visible;">
+              <a class="nav-link" href="../csvfiles/x.csv" download>Download CSV</a>
+            </li>
+          {% elif visibility == 'hidden' %}
+            <li id="download" style="content-visibility: hidden;">
+              <a class="nav-link" href="../csvfiles/x.csv" download>Download CSV</a>
+            </li>
+          {% endif %}
+
         </ul>
         <hr />
       </div>

@@ -79,7 +79,12 @@ def bluesky():
       db.execute('DELETE FROM first_dim_for_bluesky')
       db.execute('DELETE FROM second_dim_for_bluesky')
       db.commit()
-    bluesky_length = 15 # this is arbitrary
+    bluesky_length: int = 10
+    # Here, we bug-check. We ensure the user entered valid input.
+    try:
+      bluesky_length = int(request.args.get('bluesky_length', 'None')) 
+    except ValueError:
+      raise ValueError('Entry was not a Natural Number.')
     actors: dict[str, list[dict[str, str]]] = responses.get_bluesky(bluesky_length) 
     # Now we define some common variables. 
     # `identifiers` is a list of handles of users.
@@ -201,8 +206,8 @@ def bluesky():
       # We will pull data from another function in order to display the results.
       # If we do want to send anything in as an argument, it will be something
       # that is required for this. 
-      return render_template('bluesky.html', identifiers=identifiers)
-  return render_template('bluesky.html')
+      return render_template('bluesky.html', visibility="visible")
+  return render_template('bluesky.html', visibility="hidden")
 
 @app.route('/x', methods=['GET', 'POST'])
 def x():
@@ -220,7 +225,12 @@ def x():
   # So we begin right here with creating item objects and storing those in lists. 
   if request.method == 'GET':
     init_db()
-    package: list = responses.get_x(10) # return, at most, 10 responses.
+    x_length: int = 10
+    try:
+      x_length = int(request.args.get('x_length', 'None')) 
+    except ValueError:
+      raise ValueError('Entry was not a Natural Number.')
+    package: list = responses.get_x(x_length) # return, at most, 10 responses.
     x_user_ids: list[str] = package[0] 
     x_users: dict[str, str] = package[1] 
     x_follows: dict[str, list[str]] = package[2] 
@@ -309,8 +319,8 @@ def x():
         item_id += 1
     # Because getting a csv could have its own function dedicated to it, it does. 
     files.get_x_csv(db)
-    return render_template('x.html', identifiers=x_user_ids)
-  return render_template('x.html')
+    return render_template('x.html', visibility='visible')
+  return render_template('x.html', visibility='hidden')
 
 @app.route('/pornhub', methods=['POST', 'GET'])
 def pornhub():
@@ -324,6 +334,10 @@ def pornhub():
   if request.method == 'GET':
     init_db()
     pornhub_length: int = 10
+    try:
+      pornhub_length = int(request.args.get('pornhub_length', 'None')) 
+    except ValueError:
+      raise ValueError('Entry was not a Natural Number.')
     package: list = responses.get_pornhub(pornhub_length) # return, at most, 10 pornstars.
     video_search: list[requests.Response] = package[0] 
     pornstars: list[str] = package[1]
@@ -391,5 +405,5 @@ def pornhub():
         item_id += 1
     # Because getting a csv could have its own function dedicated to it, it does.
     files.get_pornhub_csv(db)
-    return render_template('pornhub.html', identifiers='identifiers')
-  return render_template('pornhub.html')
+    return render_template('pornhub.html', visibility='visible')
+  return render_template('pornhub.html', visibility='hidden')
