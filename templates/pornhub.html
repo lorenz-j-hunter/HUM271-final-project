@@ -92,6 +92,7 @@
         display: block !important;
       }
     </style>
+    <script src="{{ url_for('static', filename='includes.js')}}"></script>
   </head>
   <body>
     <svg xmlns="http://www.w3.org/2000/svg" class="d-none">
@@ -133,12 +134,7 @@
               <button type="submit" class="nav-link active">Get Data</button>
             </form>           
           </li>
-          <li>
-            <form action="{{url_for('get_pornhub_csv')}}" method="GET" class="nav-link link-body-emphasis">
-              <button type="submit" class="nav-link active">Get CSV</button>
-            </form>           
-          </li>
-          <li>
+          <li id="download">
             <a href="../csvfiles/pornhub.csv" download>Download CSV</a>
           </li>
         </ul>
