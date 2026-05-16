@@ -92,6 +92,7 @@
         display: block !important;
       }
     </style>
+    <script src="{{ url_for('static', filename='includes.js')}}"></script>
   </head>
   <body>
     <svg xmlns="http://www.w3.org/2000/svg" class="d-none">
@@ -129,17 +130,12 @@
             </form>
           </li>
           <li>
-            <form action="{{url_for('bluesky')}}" method="GET" class="nav-link link-body-emphasis">
+            <form action="{{url_for('bluesky')}}" method="GET" class="nav-link link-body-emphasis" onsubmit="activate_bsky()">
               <button type="submit" class="nav-link active">Get Data</button>
             </form>           
           </li>
-          <li>
-            <form action="{{url_for('get_bluesky_csv')}}" method="GET" class="nav-link link-body-emphasis">
-              <button type="submit" class="nav-link">Get CSV</button>
-            </form>           
-          </li>
-          <li>
-            <a class="nav-link" href="../csvfiles/bluesky.csv" download>Download CSV</a>
+          <li id="download" style="content-visibility: hidden;">
+            <a id="download" class="nav-link" href="../csvfiles/bluesky.csv" download>Download CSV</a>
           </li>
         </ul>
         <hr />
