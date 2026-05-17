@@ -92,7 +92,7 @@
         display: block !important;
       }
     </style>
-    <script src="{{ url_for('static', filename='includes.js')}}"></script>
+    <script src="{{ url_for('static', filename='activate_b.js')}}"></script>
   </head>
   <body>
     <svg xmlns="http://www.w3.org/2000/svg" class="d-none">
@@ -136,15 +136,9 @@
               <button type="submit">Submit</button>
             </form>
           </li>
-          {% if visibility == 'visible' %}
-            <li id="download" style="content-visibility: visible;">
-              <a class="nav-link" href="../csvfiles/bluesky.csv" download>Download CSV</a>
-            </li>
-          {% elif visibility == 'hidden' %}
-            <li id="download" style="content-visibility: hidden;">
-              <a class="nav-link" href="../csvfiles/bluesky.csv" download>Download CSV</a>
-            </li>
-          {% endif %}
+          <li id="csv" style="content-visibility: hidden;">
+            <a class="nav-link" href="../csvfiles/bluesky.csv" download>Download CSV</a>
+          </li>
         </ul>
         <hr />
       </div>

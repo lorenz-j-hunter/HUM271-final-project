@@ -1,8 +1,8 @@
-import os, requests, csv  # pyright: ignore[reportMissingModuleSource
+import os, requests  # pyright: ignore[reportMissingModuleSource]
 from utils.classes import item
 from flask import Flask, render_template, g, request
 from sqlite3 import dbapi2 as sqlite3
-from utils.utils import get_auth, encase, extract
+from utils.utils import get_auth, encase
 from logic import originals as responses
 from logic import csv as files
 
@@ -206,8 +206,8 @@ def bluesky():
       # We will pull data from another function in order to display the results.
       # If we do want to send anything in as an argument, it will be something
       # that is required for this. 
-      return render_template('bluesky.html', visibility="visible")
-  return render_template('bluesky.html', visibility="hidden")
+      return render_template('bluesky.html')
+  return render_template('bluesky.html')
 
 @app.route('/x', methods=['GET', 'POST'])
 def x():
@@ -226,6 +226,7 @@ def x():
   if request.method == 'GET':
     init_db()
     x_length: int = 10
+    # Here, we bug-fix. We raise an error if the user entered the wrong data. 
     try:
       x_length = int(request.args.get('x_length', 'None')) 
     except ValueError:
@@ -319,8 +320,8 @@ def x():
         item_id += 1
     # Because getting a csv could have its own function dedicated to it, it does. 
     files.get_x_csv(db)
-    return render_template('x.html', visibility='visible')
-  return render_template('x.html', visibility='hidden')
+    return render_template('x.html')
+  return render_template('x.html')
 
 @app.route('/pornhub', methods=['POST', 'GET'])
 def pornhub():
@@ -334,6 +335,7 @@ def pornhub():
   if request.method == 'GET':
     init_db()
     pornhub_length: int = 10
+    # Here, we bug-fix. We raise an error if the user entered the wrong data.
     try:
       pornhub_length = int(request.args.get('pornhub_length', 'None')) 
     except ValueError:
@@ -405,5 +407,5 @@ def pornhub():
         item_id += 1
     # Because getting a csv could have its own function dedicated to it, it does.
     files.get_pornhub_csv(db)
-    return render_template('pornhub.html', visibility='visible')
-  return render_template('pornhub.html', visibility='hidden')
+    return render_template('pornhub.html',)
+  return render_template('pornhub.html',)
