@@ -1,4 +1,4 @@
-import requests, time # type: ignore
+import requests, time, random # type: ignore
 from utils.utils import get_auth
 
 def get_bluesky(bluesky_length: int) -> dict[str, list[dict[str, str]]]:
@@ -17,7 +17,6 @@ def get_bluesky(bluesky_length: int) -> dict[str, list[dict[str, str]]]:
   endpoint = "https://public.api.bsky.app/xrpc/app.bsky.actor.searchActors"
   # We paginate through the search list until the `actors` is filled. 
   cursor = None 
-  print('here')
   actors_list: list[requests.Response] = []
   while len(actors_list) <= bluesky_length:
     params: dict[str, str | int] = {

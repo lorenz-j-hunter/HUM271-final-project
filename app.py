@@ -1,4 +1,4 @@
-import os, requests  # pyright: ignore[reportMissingModuleSource]
+import os, requests, asyncio, websockets  # pyright: ignore[reportMissingModuleSource]
 from utils.classes import item
 from flask import Flask, render_template, g, request
 from sqlite3 import dbapi2 as sqlite3
@@ -409,3 +409,15 @@ def pornhub():
     files.get_pornhub_csv(db)
     return render_template('pornhub.html',)
   return render_template('pornhub.html',)
+
+"""Open a Websocket connection."""
+
+async def jetstream_worker():
+  url = "wss://jetstream2.us-east.bsky.network/subscribe"
+  async with websockets.connect(url) as ws:
+    print('Connected to JetStream')
+    async for message in ws:
+      print(f'Received \"{message}\"')
+
+def start_jetstream_listener():
+  asyncio.create_task(jetstream_worker())
