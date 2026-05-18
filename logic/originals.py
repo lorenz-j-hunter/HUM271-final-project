@@ -1,5 +1,4 @@
-import requests, time, random # type: ignore
-from utils.utils import get_auth
+import requests, time, websockets, asyncio, threading, json, aiohttp, os
 
 def get_bluesky(bluesky_length: int) -> dict[str, list[dict[str, str]]]:
   """API responses from Bluesky.
@@ -50,7 +49,7 @@ def get_x(x_length: int) -> list[list[str] | dict[str, str] | dict[str, list]]:
   `x_posts` is `dict[str, list[str]]`."""
   # Just so you know, we only get these in order to get author ids. 
   x_posts_url = "https://api.x.com/2/tweets/search/all"
-  x_posts_headers = {"Authorization": f"Bearer {get_auth('x_bearer_token.txt')}"}
+  x_posts_headers = {"Authorization": f"Bearer {os.environ['X_BEARER_TOKEN']}"}
   x_posts_params = {
     "query": "lang:en a e i o u",
     "start_time": "2020-01-01T00:00:00Z",
@@ -70,7 +69,7 @@ def get_x(x_length: int) -> list[list[str] | dict[str, str] | dict[str, list]]:
   x_users: dict[str, str] = {}
   for id in x_user_ids:
     url = f"https://api.x.com/2/users/{id}"
-    headers = {"Authorization": f"Bearer {get_auth('x_bearer_token.txt')}"}
+    headers = {"Authorization": f"Bearer {os.environ['X_BEARER_TOKEN']}"}
     params = {"user.fields": ['username']}
     response = requests.get(url, headers=headers, params=params)
     x_users[id] = response.json().get('data').get('username')
@@ -80,7 +79,7 @@ def get_x(x_length: int) -> list[list[str] | dict[str, str] | dict[str, list]]:
   for id in x_user_ids:
     # Make the request.
     url = f"https://api.x.com/2/users/{id}/following"
-    headers = {"Authorization": f"Bearer {get_auth('x_bearer_token.txt')}"} 
+    headers = {"Authorization": f"Bearer {os.environ['X_BEARER_TOKEN']}"} 
     params = {"max_results": 10}
     response = requests.get(url, headers=headers, params=params)
     # Map it to the user.
@@ -96,7 +95,7 @@ def get_x(x_length: int) -> list[list[str] | dict[str, str] | dict[str, list]]:
     time.sleep(10) # rate limits.
     # Make the request.
     url = f"https://api.x.com/2/users/{id}/tweets"
-    headers = {"Authorization": f"Bearer {get_auth('x_bearer_token.txt')}"}
+    headers = {"Authorization": f"Bearer {os.environ['X_BEARER_TOKEN']}"}
     response = requests.get(url, headers=headers)
     # Map it to the user.
     if response.json().get('data') is None:
@@ -123,7 +122,7 @@ def get_pornhub(pornhub_length: int) -> list[list[requests.Response] | list[str]
 
   querystring = {"offset":"0","limit":str(pornhub_length)}
   headers = {
-    "x-rapidapi-key": get_auth('pornhub_key.txt'),
+    "x-rapidapi-key": os.environ['PORNHUB_KEY'],
     "x-rapidapi-host": "pornhub2.p.rapidapi.com",
     "Content-Type": "application/json"
   }
@@ -142,7 +141,7 @@ def get_pornhub(pornhub_length: int) -> list[list[requests.Response] | list[str]
                   "ordering":"newest",
                   "thumbsize":"small"}
     headers = {
-      "x-rapidapi-key": get_auth('pornhub_key.txt'),
+      "x-rapidapi-key": os.environ['PORNHUB_KEY'],
       "x-rapidapi-host": "pornhub2.p.rapidapi.com",
       "Content-Type": "application/json"
     }
@@ -151,3 +150,62 @@ def get_pornhub(pornhub_length: int) -> list[list[requests.Response] | list[str]
   # Finally, we are ready to return.
   return [video_search, pornstars]
 
+"""Open a Websocket connection for Blyesky with bluesky firehose"""
+
+loop = asyncio.new_event_loop()
+
+def loop_runner():
+  asyncio.set_event_loop(loop)
+  loop.run_forever()
+
+threading.Thread(target=loop_runner, daemon=True).start()
+
+
+async def jetstream_stream():
+  url = "wss://jetstream2.us-east.bsky.network/subscribe"
+
+  async with websockets.connect(url) as ws:
+    while True:
+      msg = await ws.recv()
+      try:
+        data = json.loads(msg)
+      except json.JSONDecodeError:
+        continue  # skip malformed messages
+
+      yield data
+
+
+async def jetstream_worker(max_events=50):
+  count = 0
+  async for event in jetstream_stream():  
+    print(event)
+    count += 1
+    if count >= max_events:
+      print("Reached max events, stopping worker")
+      break
+
+"""Open an Asynchronous Twitter Sample stream"""
+
+async def twitter_sampled_stream():
+    url = "https://api.twitter.com/2/tweets/sample/stream"
+    headers = {
+        "Authorization": f"Bearer {os.environ['X_BEARER_TOKEN']}",
+    }
+
+    async with aiohttp.ClientSession() as session:
+        async with session.get(url, headers=headers) as resp:
+            async for line in resp.content:
+                if line:
+                    try:
+                        data = json.loads(line.decode("utf-8"))
+                        yield data
+                    except json.JSONDecodeError:
+                        continue
+
+async def twitter_worker(max_events=50):
+  count = 0
+  async for tweet in twitter_sampled_stream():
+    print(tweet)
+    count += 1
+    if count >= max_events:
+      break

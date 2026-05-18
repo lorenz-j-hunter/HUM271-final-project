@@ -1,8 +1,8 @@
-import os, requests, asyncio, websockets  # pyright: ignore[reportMissingModuleSource]
+import os, requests, asyncio  
 from utils.classes import item
-from flask import Flask, render_template, g, request
+from flask import Flask, render_template, g, request, redirect, url_for
 from sqlite3 import dbapi2 as sqlite3
-from utils.utils import get_auth, encase
+from utils.utils import encase
 from logic import originals as responses
 from logic import csv as files
 
@@ -12,7 +12,7 @@ app = Flask(__name__)
 # Load default config and override config from an environment variable
 app.config.update(dict(
     DATABASE=os.path.join(app.root_path, 'database/database.db'),
-    SECRET_KEY=get_auth('secret_key.txt'),
+    SECRET_KEY=os.environ['SECRET_KEY'],
 ))
 app.config.from_envvar('HUM271_SETTINGS', silent=True)
 def connect_db():
@@ -56,9 +56,29 @@ def close_db(error):
 """Begin endpoints for html pages"""
 
 
+@app.route('/start_jetstream_listener', methods=['GET'])
+def start_jetstream_listener():
+  """Begin the jetstream for Bluesky."""
+  responses.loop.call_soon_threadsafe(
+    asyncio.create_task,
+    responses.jetstream_worker(max_events=50)
+  )
+  return render_template('bluesky.html') 
+
+@app.route('/start_twitter_listener', methods=['GET'])
+def start_twitter_listener():
+  """Begin an async sample stream for Twitter."""
+  responses.loop.call_soon_threadsafe(
+    asyncio.create_task,
+    responses.twitter_worker(max_events=50)
+  )
+  return render_template('x.html') 
+
+
 @app.route('/', methods=['GET'])
 def main():
   return render_template('main.html')
+
 
 @app.route('/bluesky', methods=['POST', 'GET'])
 def bluesky():
@@ -359,7 +379,7 @@ def pornhub():
         # Now, we're searching for this video using its ID. 
         querystring = {"id":video_id,"thumbsize":"small"}
         headers = {
-          "x-rapidapi-key": get_auth('pornhub_key.txt'),
+          "x-rapidapi-key": os.environ['PORNHUB_KEY'],
           "x-rapidapi-host": "pornhub2.p.rapidapi.com",
           "Content-Type": "application/json"
         }
@@ -385,7 +405,7 @@ def pornhub():
         # Now, we're searching for this video using its ID. 
         querystring = {"id":video_ids[i],"thumbsize":"small"}
         headers = {
-          "x-rapidapi-key": get_auth('pornhub_key.txt'),
+          "x-rapidapi-key": os.environ['PORNHUB_KEY'],
           "x-rapidapi-host": "pornhub2.p.rapidapi.com",
           "Content-Type": "application/json"
         }
@@ -409,15 +429,3 @@ def pornhub():
     files.get_pornhub_csv(db)
     return render_template('pornhub.html',)
   return render_template('pornhub.html',)
-
-"""Open a Websocket connection."""
-
-async def jetstream_worker():
-  url = "wss://jetstream2.us-east.bsky.network/subscribe"
-  async with websockets.connect(url) as ws:
-    print('Connected to JetStream')
-    async for message in ws:
-      print(f'Received \"{message}\"')
-
-def start_jetstream_listener():
-  asyncio.create_task(jetstream_worker())

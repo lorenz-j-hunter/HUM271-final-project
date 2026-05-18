@@ -139,6 +139,11 @@
           <li id="csv" style="content-visibility: hidden;">
             <a class="nav-link" href="../csvfiles/bluesky.csv" download>Download CSV</a>
           </li>
+          <li class="nav-item">
+            <form action="{{url_for('start_jetstream_listener')}}" method="GET" class="nav-link">
+              <button type="submit" class="nav-link">Start Stream</button>
+            </form>
+          </li>
         </ul>
         <hr />
       </div>

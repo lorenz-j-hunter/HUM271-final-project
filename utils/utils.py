@@ -1,12 +1,3 @@
-import os
-
-def get_auth(location: str) -> str:
-  """Get an auth token or key from a hidden file."""
-  with open(os.path.relpath("authorization/"+location, 'r')) as auth_file:
-    ret: str = auth_file.read() 
-    return ret
-  return None
-
 def encase(target: str) -> str:
   """Encase the target with the character.
   Return TypeError if the character is not a string of
