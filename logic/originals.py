@@ -1,4 +1,5 @@
 import requests, time, websockets, asyncio, threading, json, aiohttp, os
+import random
 
 def get_bluesky(bluesky_length: int) -> dict[str, list[dict[str, str]]]:
   """API responses from Bluesky.
@@ -20,7 +21,7 @@ def get_bluesky(bluesky_length: int) -> dict[str, list[dict[str, str]]]:
   while len(actors_list) <= bluesky_length:
     params: dict[str, str | int] = {
       "q" : 'a',
-      "limit" : 1 
+      "limit" : 5 
     }
     if cursor:
       params["cursor"] = cursor
@@ -110,43 +111,65 @@ def get_x(x_length: int) -> list[list[str] | dict[str, str] | dict[str, list]]:
   return [x_user_ids, x_users, x_follows, x_posts] 
 
 
-def get_pornhub(pornhub_length: int) -> list[list[requests.Response] | list[str]]:
+def get_pornhub(pornhub_length: int, tags=None, pornstars_arg=None) -> list[list[requests.Response] | list[str]]:
   """API responses for Pornhub. 
   Return [pornhub_length, video_search, pornstars], where `pornhub_length` is the number of videos
   that were requested, `video_search` is `list[requests.Response]`, and `pornstars` is
   `list[requests.Response]`."""
 
   video_search: list[requests.Response] = []
-  # Here, we only search for pornstars. 
-  url = "https://pornhub2.p.rapidapi.com/v2/stars_detailed"
-
-  querystring = {"offset":"0","limit":str(pornhub_length)}
-  headers = {
-    "x-rapidapi-key": os.environ['PORNHUB_KEY'],
-    "x-rapidapi-host": "pornhub2.p.rapidapi.com",
-    "Content-Type": "application/json"
-  }
-  # Here, we process the request. We make it into a list of strings. 
-  stars_response: list[dict[str,str]] = requests.get(url, headers=headers, params=querystring).json().get('stars')
   pornstars: list[str] = []
-  for star in stars_response:
-    pornstars.append(star['star_name']) 
-  # Now, we fetch a list of videos associated with these stars. 
-  for _ in range(pornhub_length):
-    url = "https://pornhub2.p.rapidapi.com/v2/search"
-    querystring = {"search":"oiled",
-                  "page":"1",
-                  "period":"weekly",
-                  "stars":pornstars,
-                  "ordering":"newest",
-                  "thumbsize":"small"}
+  # We need pornstars in order to make searches on videos. The user can provide them themselves 
+  # or have them be automatically generated. 
+  if pornstars_arg:
+    pornstars = pornstars_arg
+  else:
+    # Here, we only search for pornstars. 
+    url = "https://pornhub2.p.rapidapi.com/v2/stars_detailed"
+    querystring = {"offset":"0","limit":str(pornhub_length)}
     headers = {
       "x-rapidapi-key": os.environ['PORNHUB_KEY'],
       "x-rapidapi-host": "pornhub2.p.rapidapi.com",
       "Content-Type": "application/json"
     }
-    response = requests.get(url, headers=headers, params=querystring)
-    video_search.append(response)
+    # Here, we process the request. We make it into a list of strings. 
+    stars_response: list[dict[str,str]] = requests.get(url, headers=headers, params=querystring).json().get('stars')
+    for star in stars_response:
+      pornstars.append(star['star_name']) 
+  # Now, we fetch a list of videos associated with these stars. 
+  for _ in range(pornhub_length):
+    url = "https://pornhub2.p.rapidapi.com/v2/search"
+    # The user can also enter the tags of videos they want. A response is called for each tag
+    # once. The default tag is 'cumshot'.
+    if tags:
+      tag = tags[random.randrange(0, len(tags))]
+      querystring = {"search":tag,
+                    "page":"1",
+                    "period":"weekly",
+                    "stars":pornstars,
+                    "ordering":"newest",
+                    "thumbsize":"small"}
+      headers = {
+        "x-rapidapi-key": os.environ['PORNHUB_KEY'],
+        "x-rapidapi-host": "pornhub2.p.rapidapi.com",
+        "Content-Type": "application/json"
+      }
+      response = requests.get(url, headers=headers, params=querystring)
+      video_search.append(response)
+    else :
+      querystring = {"search":"cumshot",
+                    "page":"1",
+                    "period":"weekly",
+                    "stars":pornstars,
+                    "ordering":"newest",
+                    "thumbsize":"small"}
+      headers = {
+        "x-rapidapi-key": os.environ['PORNHUB_KEY'],
+        "x-rapidapi-host": "pornhub2.p.rapidapi.com",
+        "Content-Type": "application/json"
+      }
+      response = requests.get(url, headers=headers, params=querystring)
+      video_search.append(response)
   # Finally, we are ready to return.
   return [video_search, pornstars]
 
