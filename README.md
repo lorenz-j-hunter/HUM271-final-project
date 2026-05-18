@@ -55,9 +55,9 @@ See more in the 'Final Project Essay' section.
   X
     - https://docs.x.com
   Pornhub
-    - https://rapidapi.com
+    - https://rapidapi.com/PornAPIs/api/pornhub2
 
 #### Final Project Essay
-  This is basically a longer version of this README.
+  This is like a longer version of this README.
   It includes a discussion of the literature review, unlike this README.
   [Here it is.]("C:\Users\LJH10\OneDrive\Documents\HUM271 - Final Project Essay.docx")
