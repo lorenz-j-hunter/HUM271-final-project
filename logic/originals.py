@@ -21,7 +21,7 @@ def get_bluesky(bluesky_length: int) -> dict[str, list[dict[str, str]]]:
   while len(actors_list) <= bluesky_length:
     params: dict[str, str | int] = {
       "q" : 'a',
-      "limit" : 5 
+      "limit" : 1 
     }
     if cursor:
       params["cursor"] = cursor

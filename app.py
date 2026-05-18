@@ -65,15 +65,6 @@ def start_jetstream_listener():
   )
   return render_template('bluesky.html') 
 
-@app.route('/start_twitter_listener', methods=['GET'])
-def start_twitter_listener():
-  """Begin an async sample stream for Twitter."""
-  responses.loop.call_soon_threadsafe(
-    asyncio.create_task,
-    responses.twitter_worker(max_events=50)
-  )
-  return render_template('x.html') 
-
 
 @app.route('/', methods=['GET'])
 def main():
