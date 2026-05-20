@@ -1,3 +1,5 @@
+import requests
+
 # Item is the tool used to retrieve data from the database
 # as well as fetch data from it. 
 #
@@ -18,7 +20,7 @@ class item:
       self.platform=args['platform']
       self.type=args['type']
       self.item_id=args['item_id']
-  def __str__(self):
+  def __repr__(self):
       return self.data + '_' + self.did + '_' + self.platform + '_' + self.type + '_' + self.item_id
   def get(self, item: str) -> str | None:
     """A `get` method for this class."""
@@ -34,3 +36,25 @@ class item:
       return self.item_id
     else:
       return None
+
+# Pair a response with other things.
+class compound:
+  response: requests.Response
+  comment: str = ''
+  def __init__(self, args: dict):
+    if not args['response'] or not args['comment']:
+      raise TypeError('Class \'compound\' not initialized with all data')
+    if type(args['response']) is not requests.Response:
+      raise TypeError('\'response\' not initialized with type \'requests.Response\'')
+    if type(args['comment']) is not str:
+      raise TypeError('\'comment\' not initialized with type \'str\'')
+    self.response = args['response']
+    self.comment = args['comment']
+  def get(self, arg: str) -> str | requests.Response | None:
+    """Getter method for this class"""
+    if arg == 'response':
+      return self.response
+    elif arg == 'comment':
+      return self.comment
+    else:
+      raise TypeError(f'\'{arg}\' not an attribute of \'compound\'')

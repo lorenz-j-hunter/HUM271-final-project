@@ -5,6 +5,7 @@ from sqlite3 import dbapi2 as sqlite3
 from utils.utils import encase
 from logic import originals as responses
 from logic import csv as files
+from utils.classes import compound
 
 """Create the app and make db commands."""
 app = Flask(__name__)
@@ -95,7 +96,7 @@ def bluesky():
     try:
       bluesky_length = int(request.args.get('bluesky_length', 'None')) 
     except ValueError:
-      raise ValueError('Entry was not a Natural Number.')
+      return redirect(url_for('static', filename='notfound.html'))
     actors: dict[str, list[dict[str, str]]] = responses.get_bluesky(bluesky_length) 
     # Now we define some common variables. 
     # `identifiers` is a list of handles of users.
@@ -241,7 +242,7 @@ def x():
     try:
       x_length = int(request.args.get('x_length', 'None')) 
     except ValueError:
-      raise ValueError('Entry was not a Natural Number.')
+      return redirect(url_for('static', filename='notfound.html'))
     package: list = responses.get_x(x_length) # return, at most, 10 responses.
     x_user_ids: list[str] = package[0] 
     x_users: dict[str, str] = package[1] 
@@ -350,21 +351,36 @@ def pornhub():
     try:
       pornhub_length = int(request.args.get('pornhub_length', 'None')) 
     except ValueError:
-      raise ValueError('Entry was not a Natural Number.')
-    package: list = responses.get_pornhub(pornhub_length) # return, at most, 10 pornstars.
-    video_search: list[requests.Response] = package[0] 
+      return redirect(url_for('static', filename='notfound.html'))
+    # Process these inputs from user. Used to get the package. 
+    pornstars_arg = request.args.get('pornstars')
+    if pornstars_arg == '':
+      pornstars_arg = None
+    tags_arg = request.args.get('tags')
+    if tags_arg == '':
+      tags_arg = None
+    package: list = responses.get_pornhub(
+      pornhub_length,
+      pornstars_arg=pornstars_arg,
+      tags=tags_arg
+    )
+    video_search: list[compound] = package[0] 
     pornstars: list[str] = package[1]
     url = "https://pornhub2.p.rapidapi.com/v2/video_by_id"
     # These are our return values. Each represent a column of the CSV we want to create with this
     # function.
-    # Unlike X or Bluesky, the API we use doesn't store comment data. Only title and text.
+    # Unlike X or Bluesky, the API we use doesn't store follow/profile data. Only title and text.
+    # We might normally crawl follower graphs, but we cant do that here in other words.
     # First, we extract the video ID for each response. Then, we create another 
     # request with the ID. 
     video_ids: list[str] = []
     with get_db() as db:
       for i in range(pornhub_length):
-        # We're extracting the video ID now.
-        raw: dict[str, str] = video_search[i].json().get('data').get('videos')[i]
+        # We're extracting the video ID now. We encased each `video_search` entry in;
+        # now we must convert each to a dict.
+        response: requests.Response = video_search[i].get('response') # pyright: ignore[reportAssignmentType]
+        pornstar: str = video_search[i].get('comment') # pyright: ignore[reportAssignmentType]
+        raw: dict[str, str] = response.json().get('data').get('videos')[i]
         video_id: str = raw['video_id']
         video_ids.append(video_id)
         # Now, we're searching for this video using its ID. 
@@ -380,13 +396,13 @@ def pornhub():
         # only insert head for that here and then get it later. 
         insertion: item = item({
           'data' : encase(f'video_id:{video_id}'),
-          'did' : '"did:None"',
-          'platform' : '"platform:pornhub"',
-          'type' : '"type:video_id"',
+          'did' : encase('did:None'),
+          'platform' : encase('platform:pornhub'),
+          'type' : encase('type:video_id'),
           'item_id': encase(f'item_id:{str(i)}')
         })
         db.execute('INSERT INTO first_dim_for_pornhub (title, pornstar) VALUES (?, ?)',
-                  [str(insertion), encase(pornstars[i])])
+                  [str(insertion), encase(pornstar)])
     # Next, we handle the second dimension.
     # We use the ids gathered before to search for title and tags. 
     # We make a request for each iteration.

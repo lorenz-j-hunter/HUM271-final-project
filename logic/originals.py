@@ -1,5 +1,6 @@
-import requests, time, websockets, asyncio, threading, json, aiohttp, os
+import requests, time, websockets, asyncio, threading, json, os
 import random
+from utils.classes import compound
 
 def get_bluesky(bluesky_length: int) -> dict[str, list[dict[str, str]]]:
   """API responses from Bluesky.
@@ -111,18 +112,23 @@ def get_x(x_length: int) -> list[list[str] | dict[str, str] | dict[str, list]]:
   return [x_user_ids, x_users, x_follows, x_posts] 
 
 
-def get_pornhub(pornhub_length: int, tags=None, pornstars_arg=None) -> list[list[requests.Response] | list[str]]:
+def get_pornhub(pornhub_length: int, tags=None, pornstars_arg=None) -> list[list[compound] | list[str]]:
   """API responses for Pornhub. 
   Return [pornhub_length, video_search, pornstars], where `pornhub_length` is the number of videos
   that were requested, `video_search` is `list[requests.Response]`, and `pornstars` is
   `list[requests.Response]`."""
 
-  video_search: list[requests.Response] = []
+  video_search: list[compound] = []
   pornstars: list[str] = []
   # We need pornstars in order to make searches on videos. The user can provide them themselves 
   # or have them be automatically generated. 
   if pornstars_arg:
-    pornstars = pornstars_arg
+    # We assume the user has delimited all of their choices with a comma and that all of them
+    # are valid account names.
+    l: list[str] = pornstars_arg.split(',')
+    for star in l:
+      star.strip(' ')
+    pornstars = l 
   else:
     # Here, we only search for pornstars. 
     url = "https://pornhub2.p.rapidapi.com/v2/stars_detailed"
@@ -137,16 +143,17 @@ def get_pornhub(pornhub_length: int, tags=None, pornstars_arg=None) -> list[list
     for star in stars_response:
       pornstars.append(star['star_name']) 
   # Now, we fetch a list of videos associated with these stars. 
+  # We match the star with their respective video
   for _ in range(pornhub_length):
     url = "https://pornhub2.p.rapidapi.com/v2/search"
     # The user can also enter the tags of videos they want. A response is called for each tag
     # once. The default tag is 'cumshot'.
     if tags:
-      tag = tags[random.randrange(0, len(tags))]
-      querystring = {"search":tag,
+      pornstar = pornstars[random.randrange(0, len(pornstars))],
+      querystring = {"search":tags[random.randrange(0, len(tags))],
                     "page":"1",
                     "period":"weekly",
-                    "stars":pornstars,
+                    "stars":pornstar,
                     "ordering":"newest",
                     "thumbsize":"small"}
       headers = {
@@ -155,12 +162,17 @@ def get_pornhub(pornhub_length: int, tags=None, pornstars_arg=None) -> list[list
         "Content-Type": "application/json"
       }
       response = requests.get(url, headers=headers, params=querystring)
-      video_search.append(response)
+      insertion: compound = compound({
+        'response': response,
+        'comment': str(pornstar)
+      })
+      video_search.append(insertion)
     else :
+      pornstar = pornstars[random.randrange(0, len(pornstars))],
       querystring = {"search":"cumshot",
                     "page":"1",
                     "period":"weekly",
-                    "stars":pornstars,
+                    "stars":pornstar,
                     "ordering":"newest",
                     "thumbsize":"small"}
       headers = {
@@ -169,7 +181,11 @@ def get_pornhub(pornhub_length: int, tags=None, pornstars_arg=None) -> list[list
         "Content-Type": "application/json"
       }
       response = requests.get(url, headers=headers, params=querystring)
-      video_search.append(response)
+      insertion: compound = compound({
+        'response': response,
+        'comment': pornstar
+      })
+      video_search.append(insertion)
   # Finally, we are ready to return.
   return [video_search, pornstars]
 
@@ -205,30 +221,4 @@ async def jetstream_worker(max_events=50):
     count += 1
     if count >= max_events:
       print("Reached max events, stopping worker")
-      break
-
-"""Open an Asynchronous Twitter Sample stream"""
-
-async def twitter_sampled_stream():
-    url = "https://api.twitter.com/2/tweets/sample/stream"
-    headers = {
-        "Authorization": f"Bearer {os.environ['X_BEARER_TOKEN']}",
-    }
-
-    async with aiohttp.ClientSession() as session:
-        async with session.get(url, headers=headers) as resp:
-            async for line in resp.content:
-                if line:
-                    try:
-                        data = json.loads(line.decode("utf-8"))
-                        yield data
-                    except json.JSONDecodeError:
-                        continue
-
-async def twitter_worker(max_events=50):
-  count = 0
-  async for tweet in twitter_sampled_stream():
-    print(tweet)
-    count += 1
-    if count >= max_events:
       break

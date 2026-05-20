@@ -174,16 +174,17 @@ def get_pornhub_csv(db):
   # We gather a list; each element represents a single cell of the column
   # in question.
   consolidated: list[dict[str,str]] = []
-  # We first get the video details...
+  # We inserted the video details in the function that precedes this (pornhub())
+  # Now, we get them back.
   cur = db.execute("SELECT title, pornstar FROM first_dim_for_pornhub")
   f = cur.fetchall()
   video_data: list[str] = [row[0] for row in f]
-  pornstar: list[str] = [row[1] for row in f]
+  pornstars: list[str] = [row[1] for row in f]
   # So here we make that list. Each element resembles an insertion object
   # being a dict. 
   for i in range(len(video_data)):
     pre: dict[str,str] = extract(video_data[i])
-    pre['pornstar'] = pornstar[i]  
+    pre['pornstar'] = pornstars[i].strip('#').strip('()').strip(',').strip('\'')
     consolidated.append(pre)
   # Now, we open a flat file and insert to it. 
   with open('../csvfiles/pornhub.csv', 'w', newline='\n') as csvfile:
