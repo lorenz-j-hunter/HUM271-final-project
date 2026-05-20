@@ -132,7 +132,7 @@
           <li>
             <form action="{{url_for('bluesky')}}" method="GET" class="nav-link link-body-emphasis" onsubmit="activate()">
               Select Number of Responses 
-              <input type="text" name="bluesky_length">
+              <input type="text" name="bluesky_length" pattern="[0-9]{1,2}" required>
               <button type="submit">Submit</button>
             </form>
           </li>
@@ -140,9 +140,14 @@
             <a class="nav-link" href="../csvfiles/bluesky.csv" download>Download CSV</a>
           </li>
           <li class="nav-item">
-            <form action="{{url_for('start_jetstream_listener')}}" method="GET" class="nav-link">
+            <form action="{{url_for('start_jetstream_listener')}}" method="GET" class="nav-link" onsubmit="activate_stream()">
+              <input type="text" placeholder="# of responses" required pattern="[0-9]{1,2}">
+              <input type="text" placeholder="Type of response" required pattern="(post)|(follow)">
               <button type="submit" class="nav-link">Start Stream</button>
             </form>
+          </li>
+          <li id="stream-csv" style="content-visibility: hidden;">
+            <a class="nav-link" href="../csvfiles/bluesky-stream.csv" download>Download Stream CSV</a>
           </li>
         </ul>
         <hr />
