@@ -10,69 +10,71 @@ def get_bluesky_csv(db):
   consolidated: list[dict[str,list[str]]] = []
   # We open the first dimension here. The only column opened is the one
   # with one dimension.
-  cur = db.execute('SELECT users FROM first_dim_for_bluesky')
+  cur = db.execute('SELECT item_id, name FROM first_dim_for_bluesky')
   f = cur.fetchall()
-  user_data: list[str] = [row[0] for row in f]
+  item_ids: list[int] = [row[0] for row in f]
+  names: list[str] = [row[1] for row in f]
   # Now, we extract from this. We put each cell in a dict.
   # This is so that the data inside can be used to gather data
   # on the user later.
-  for item_id in range(len(user_data)):
-    cur = db.execute('SELECT follows, posts FROM second_dim_for_bluesky WHERE id == (?)',
+  for item_id in item_ids:
+    # Gather all follows/posts from the user (item_id) in question.
+    cur = db.execute('SELECT follows, posts FROM second_dim_for_bluesky WHERE item_id == (?)',
                       [item_id])
     f = cur.fetchall()
     follows: list[str] = [row[0] for row in f]
     posts: list[str] = [row[1] for row in f]
+    # `names[item_id]` represents the name of the user in question. Each user has a unique
+    # `item_id`, so it is okay to traverse with it.
     consolidated.append(dict({
-      'datum': [str(item(extract(user_data[item_id])))],
+      'datum': [names[item_id-1]], # account for zero-indexing.
       'follows': follows,
       'posts': posts
     }))
-  # We write to the file now.
-  # The mapping is surjective if the codomain is 'users' and domain is 'follows/posts', so
-  # we loop by user and then insert all of their follows or posts. 
+  # We write to the file now. 
   with open('../csvfiles/bluesky.csv', 'w', newline='\n') as csvfile:
-    field_names = ['user', 'follows', 'posts']
+    field_names = ['name', 'follows', 'posts']
     writer = csv.DictWriter(csvfile, fieldnames=field_names)
     writer.writeheader()
-    for item_id in range(len(user_data)):
-      follows: list[str] = consolidated[item_id].get('follows', [])
-      posts: list[str] = consolidated[item_id].get('posts', [])
+    for item_id in item_ids:
+      follows: list[str] = consolidated[item_id-1].get('follows', [])
+      posts: list[str] = consolidated[item_id-1].get('posts', [])
       # case 1: number of follows > number of posts
       if len(follows) > len(posts):
         for i in range(len(posts)):
           writer.writerow({
-            'user': user_data[item_id].split('#_#')[0].strip('#'),
-            'follows': follows[i].split('#_#')[0].strip('#'),
-            'posts': posts[i].split('#_#')[0].strip('#')
+            'name': names[item_id-1],
+            'follows': follows[i],
+            'posts': posts[i]
           })
         for i in range(len(posts), len(follows)):
           writer.writerow({
-            'user': user_data[item_id].split('#_#')[0].strip('#'),
-            'follows': follows[i].split('#_#')[0].strip('#'),
+            'name': names[item_id-1],
+            'follows': follows[i],
             'posts': 'None' 
           })
       # case 2: number of follows < number of posts
       elif len(posts) > len(follows):
         for i in range(len(follows)):
           writer.writerow({
-            'user': user_data[item_id].split('#_#')[0].strip('#'),
-            'follows': follows[i].split('#_#')[0].strip('#'),
-            'posts': posts[i].split('#_#')[0].strip('#')
+            'name': names[item_id-1],
+            'follows': follows[i],
+            'posts': posts[i]
           })
         for i in range(len(follows), len(posts)):
           writer.writerow({
-            'user': user_data[item_id].split('#_#')[0].strip('#'),
+            'name': names[item_id-1],
             'follows': 'None',
-            'posts': posts[i].split('#_#')[0].strip('#')
+            'posts': posts[i]
 
           })
       # case 3: number of follows == number of posts
       elif len(posts) == len(follows):
         for i in range(len(follows)):
           writer.writerow({
-            'user': user_data[item_id].split('#_#')[0].strip('#'),
-            'follows': follows[i].split('#_#')[0].strip('#'),
-            'posts': posts[i].split('#_#')[0].strip('#')
+            'name': names[item_id-1],
+            'follows': follows[i],
+            'posts': posts[i]
           })
   return render_template('bluesky.html') 
 
@@ -83,9 +85,10 @@ def get_x_csv(db):
   # Because the other two columns (follows and posts) are two-dimensional,
   # they will be fetched in a different scope.
   consolidated: list[dict[str,list[str]]] = []
-  cur = db.execute('SELECT users FROM first_dim_for_x') 
+  cur = db.execute('SELECT item_id, name FROM first_dim_for_x') 
   f = cur.fetchall()
-  user_data: list[str] = [row[0] for row in f]
+  item_ids: list[int] = [row[0] for row in f]
+  names: list[str] = [row[1] for row in f]
   # Now we do get follows and posts.
   # We want each list of follows and posts to still be associated with the user
   # in question for this data type, so we will append a list do 
@@ -93,20 +96,23 @@ def get_x_csv(db):
   f = cur.fetchall()
   follows_data: list[str] = []
   posts_data: list[str] = []
-  for datum in user_data:
-    user_item_id: str = datum.split('#_#')[4].strip('#')
+  for item_id in item_ids:
+    # each user has their own follows/posts.
+    follows_data = []
+    posts_data = []
     for row in f:
-      follow: item = item(extract(row[0])) #keyError here
+      follow: str = row[0] 
       post: str = row[1]
+      db_id: str = row[2]
       # Only in the case that the user is the one we want to get follows, posts from do we
       # fetch them, is what this means. For each user, we loop through the entire second_dim
       # database. Each time, we pick the rows which have the user's item_id on them.
-      if follow.get('item_id') == user_item_id:
+      if db_id == item_id:
         follows_data.append(str(follow))
         posts_data.append(str(post))
     # Now, we add these newly populated lists `follows_data`, etc into the `consolidated`. 
     consolidated.append(dict({
-      'datum': [str(item(extract(datum)))],
+      'datum': [names[item_id-1]],
       'follows': follows_data,
       'posts': posts_data
     }))
@@ -117,7 +123,7 @@ def get_x_csv(db):
   # all of the follows have been printed. Likewise if there are more follows than posts. 
   # Now, we open a flat file and insert to it. 
   with open('../csvfiles/x.csv', 'w', newline='\n') as csvfile:
-    field_names = ['user', 'did', 'follows', 'posts']
+    field_names = ['name', 'did', 'follows', 'posts']
     writer = csv.DictWriter(csvfile, fieldnames=field_names)
     writer.writeheader()
     for elem in consolidated:
@@ -127,15 +133,15 @@ def get_x_csv(db):
       if len(elem['follows']) > len(elem['posts']):
         for i in range(len(elem['posts'])):
           writer.writerow({
-            'user': elem.get('datum')[0].split('#_#')[0].strip('#'),  # type: ignore
-            'did': elem.get('datum')[0].split('#_#')[1].strip('#'),  # pyright: ignore[reportOptionalSubscript]
-            'follows': elem['follows'][i].split('#_#')[0].strip('#'),
-            'posts': elem['posts'][i].split('#_#')[0].strip('#')
+            'name': elem.get('datum', 'None')[0],  
+            'did': elem.get('datum', 'None')[0],  
+            'follows': elem['follows'][i],
+            'posts': elem['posts'][i]
           })
         for i in range(len(elem['posts']), len(elem['follows'])):
           writer.writerow({
-            'user': elem.get('datum').split('#_#')[0].strip('#'), # type: ignore
-            'did': elem.get('datum').split('#_#')[1].strip('#'), # type: ignore
+            'name': elem.get('datum', 'None'), 
+            'did': elem.get('datum', 'None'), 
             'follows': elem['follows'][i],
             'posts': '"None"' 
           })
@@ -143,15 +149,15 @@ def get_x_csv(db):
       elif len(elem['posts']) > len(elem['follows']):
         for i in range(len(elem['follows'])):
           writer.writerow({
-            'user': elem.get('datum').split('#_#')[0].strip('#'), # type: ignore
-            'did': elem.get('datum').split('#_#')[1].strip('#'), # type: ignore
+            'name': elem.get('datum', 'None'), 
+            'did': elem.get('datum', 'None'), 
             'follows': elem['follows'][i],
             'posts': elem['posts'][i]
           })
         for i in range(len(elem['posts']), len(elem['follows'])):
           writer.writerow({
-            'user': elem.get('datum').split('#_#')[0].strip('#'), # type: ignore
-            'did': elem.get('datum').split('#_#')[1].strip('#'), # type: ignore
+            'name': elem.get('datum', 'None'), 
+            'did': elem.get('datum', 'None'), 
             'follows': '"None"',
             'posts': elem['posts'][i] 
           })
@@ -159,8 +165,8 @@ def get_x_csv(db):
       else:
         for i in range(len(elem['follows'])):
           writer.writerow({
-            'user': elem.get('datum').split('#_#')[0].strip('#'), # type: ignore
-            'did': elem.get('datum').split('#_#')[1].strip('#'), # type: ignore
+            'name': elem.get('datum', 'None'),
+            'did': elem.get('datum', 'None'), 
             'follows': elem['follows'][i],
             'posts': elem['posts'][i]
           })
