@@ -183,7 +183,7 @@ def get_pornhub(pornhub_length: int, tags=None, pornstars_arg=None) -> list[list
       response = requests.get(url, headers=headers, params=querystring)
       insertion: compound = compound({
         'response': response,
-        'comment': pornstar
+        'comment': str(pornstar)
       })
       video_search.append(insertion)
   # Finally, we are ready to return.

@@ -293,7 +293,7 @@ def pornhub():
   """
   if request.method == 'GET':
     init_db()
-    pornhub_length: int = 10
+    pornhub_length: int = 10 # user is required to write to this
     # Here, we bug-fix. We raise an error if the user entered the wrong data.
     try:
       pornhub_length = int(request.args.get('pornhub_length', 'None')) 
@@ -341,23 +341,15 @@ def pornhub():
         # Now it's possible for us to get the details of it.
         # We grab the title and tags. But remember, since tags is two-dimensional, we 
         # only insert head for that here and then get it later. 
-        insertion: item = item({
-          'data' : encase(f'video_id:{video_id}'),
-          'did' : encase('did:None'),
-          'platform' : encase('platform:pornhub'),
-          'type' : encase('type:video_id'),
-          'item_id': encase(f'item_id:{str(i)}')
-        })
         db.execute('INSERT INTO first_dim_for_pornhub (title, pornstar) VALUES (?, ?)',
-                  [str(insertion), encase(pornstar)])
+                  [video_id, pornstar])
     # Next, we handle the second dimension.
     # We use the ids gathered before to search for title and tags. 
     # We make a request for each iteration.
     with get_db() as db:
-      item_id: int = 0
-      for i in range(pornhub_length):
+      for item_id in range(pornhub_length):
         # Now, we're searching for this video using its ID. 
-        querystring = {"id":video_ids[i],"thumbsize":"small"}
+        querystring = {"id":video_ids[item_id],"thumbsize":"small"}
         headers = {
           "x-rapidapi-key": os.environ['PORNHUB_KEY'],
           "x-rapidapi-host": "pornhub2.p.rapidapi.com",
@@ -368,17 +360,9 @@ def pornhub():
         # For this video, we just extracted its title and a list of tags. Now, we insert
         # them into the database this way.
         for e in tags:
-          tag_insertion: item = item({
-            'data': encase(f'tag_name:{e.get('tag_name', '"None"')}'),
-            'did': encase('did:None'),
-            'platform': encase('platform:pornhub'),
-            'type': encase('type:tag'),
-            'item_id': encase(f'item_id:{str(item_id)}')
-          })
-          db.execute('INSERT INTO second_dim_for_pornhub (tags) VALUES (?)',
-                    [str(tag_insertion)])
+          db.execute('INSERT INTO second_dim_for_pornhub (item_id, tags) VALUES (?, ?)',
+                    [item_id+1, e.get('tag_name', 'None')])
           db.commit()
-        item_id += 1
     # Because getting a csv could have its own function dedicated to it, it does.
     files.get_pornhub_csv(db)
     return render_template('pornhub.html',)

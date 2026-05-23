@@ -101,7 +101,7 @@ def get_x_csv(db):
     follows_data = []
     posts_data = []
     for row in f:
-      follow: str = row[0] 
+      follow: str = row[0]
       post: str = row[1]
       db_id: str = row[2]
       # Only in the case that the user is the one we want to get follows, posts from do we
@@ -172,29 +172,58 @@ def get_x_csv(db):
           })
   return render_template('x.html')
 
-def get_pornhub_csv(db):
+def get_pornhub_csv(db, max_tags=10):
   """Convert the database file into a csv. 
   The csv represents an undirected and simple graph."""
-  # First, we open the database.
-  # We are gathering a source and target for each row.
-  # We gather a list; each element represents a single cell of the column
-  # in question.
-  consolidated: list[dict[str,str]] = []
   # We inserted the video details in the function that precedes this (pornhub())
   # Now, we get them back.
-  cur = db.execute("SELECT title, pornstar FROM first_dim_for_pornhub")
+  cur = db.execute("SELECT item_id, title, pornstar FROM first_dim_for_pornhub")
   f = cur.fetchall()
-  video_data: list[str] = [row[0] for row in f]
-  pornstars: list[str] = [row[1] for row in f]
-  # So here we make that list. Each element resembles an insertion object
-  # being a dict. 
-  for i in range(len(video_data)):
-    pre: dict[str,str] = extract(video_data[i])
-    pre['pornstar'] = pornstars[i].strip('#').strip('()').strip(',').strip('\'')
-    consolidated.append(pre)
+  # star_ids is different from item_ids because elements are unique.
+  # item_ids (videos) contains elements which correspond to which tags they
+  # had. 
+  title_ids: list[int] = [row[0] for row in f]
+  titles: list[str] = [row[1] for row in f]
+  pornstars: list[str] = [row[2] for row in f]
+  # Now we get the second dimension.
+  cur = db.execute('SELECT item_id, tags FROM second_dim_for_pornhub')
+  f = cur.fetchall()
+  video_ids: list[int] = [int(row[0]) for row in f]
+  tags: list[str] = [row[1] for row in f]
+  # We want to make it so that every video_id is associated with a list
+  # of its tags, not like how it was arranged in the database.
+  # We now initialize.
+  video_to_tags: dict[str, list[str]] = {}
+  for video_id in video_ids:
+    video_to_tags[str(video_id)] = []
+  # We now match.
+  for video_id in range(len(video_ids)):
+    # Instead of putting the title as the key, its id is the key.
+    video_to_tags[str(video_ids[video_id])].append(tags[int(video_id)])
+  # consolidated must be initialized first. 
+  consolidated: list[dict[str,str]] = []
+  for _ in range(max(title_ids)*max_tags): # get at most `max_tags` tags.
+    consolidated.append({})
+  # for every video ...
+  for title_id in title_ids:
+    for video_id in video_ids:
+      # ... find the star of the video ...
+      if title_id == video_id:
+        # ... then match the star with the tags of their video. 
+        counter = 0 
+        while counter < max_tags:
+          consolidated[max_tags*(title_id-1) + counter]['title'] = titles[int(title_id)-1]
+          consolidated[max_tags*(title_id-1) + counter]['title_id'] = str(title_id)
+          consolidated[max_tags*(title_id-1) + counter]['pornstar'] = pornstars[int(video_id-1)].strip('()').strip(',').strip('\'') # a pornstar
+          # Only insert if there are at least `max_tags`` tags. 
+          if video_to_tags[str(title_id)][counter]:
+            consolidated[max_tags*(title_id-1) + counter]['tags'] = video_to_tags[str(title_id)][counter] # a tag.
+          else:
+            consolidated[max_tags*(title_id-1) + counter]['tags'] = 'None'
+          counter += 1
   # Now, we open a flat file and insert to it. 
   with open('../csvfiles/pornhub.csv', 'w', newline='\n') as csvfile:
-    field_names = ['video_id', 'did', 'platform', 'type', 'item_id', 'pornstar']
+    field_names = ['title', 'title_id', 'pornstar', 'tags']
     writer = csv.DictWriter(csvfile, fieldnames=field_names)
     writer.writeheader()
     for row in consolidated:
