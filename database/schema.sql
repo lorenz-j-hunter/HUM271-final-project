@@ -14,7 +14,7 @@ create table first_dim_for_x (
 
 drop table if exists first_dim_for_pornhub;
 create table first_dim_for_pornhub (
-    "id" integer primary key autoincrement,
+    item_id integer primary key autoincrement,
     title text not null,
     pornstar text not null
 );
@@ -22,7 +22,6 @@ create table first_dim_for_pornhub (
 
 drop table if exists second_dim_for_bluesky;
 create table second_dim_for_bluesky (
-    "id" integer primary key autoincrement,
     follows text not null,
     posts text not null,
     item_id text not null
@@ -37,6 +36,6 @@ create table second_dim_for_x (
 
 drop table if exists second_dim_for_pornhub;
 create table second_dim_for_pornhub (
-    "id" integer primary key autoincrement,
-    tags text not null
+    tags text not null,
+    item_id text not null
 );
