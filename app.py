@@ -1,8 +1,7 @@
 import os, requests, asyncio  
-from utils.classes import item
 from flask import Flask, render_template, g, request, redirect, url_for
 from sqlite3 import dbapi2 as sqlite3
-from utils.utils import encase
+from utils.utils import get_age 
 from logic import originals as responses
 from logic import csv as files
 from utils.classes import compound
@@ -164,9 +163,13 @@ def bluesky():
     with get_db() as db:
       # We first insert to the first dimension here, then move onto the second dimension.
       for actor in range(bluesky_length): # assume all of these lists are the same length
-        db.execute('INSERT INTO first_dim_for_bluesky (name, did) VALUES (?, ?)',
+        # the age in months must be computed from the real response data.
+        age_months: int = get_age(actors['actors'][actor].get('createdAt', 'None'))
+        db.execute('INSERT INTO first_dim_for_bluesky (name, did, age_months, pronouns) VALUES (?, ?, ?, ?)',
                    [actors['actors'][actor].get('displayName', 'None'),
-                    actors['actors'][actor].get('did', 'None')])
+                    actors['actors'][actor].get('did', 'None'),
+                    age_months,
+                    actors['actors'][actor].get('pronouns', 'None')])
         db.commit()
         # Now we add to the second dimension for follows and posts. 
         # First we insert into both columns for follows. Then, we update the rows
@@ -185,7 +188,7 @@ def bluesky():
           p_insertion_list: list[str] = all_posts[identifiers[actor]]
           # We first update what has already been inserted.
           for e in range(f_insertion_list_len):
-            db.execute('UPDATE second_dim_for_bluesky SET posts = (?) WHERE id == (?)',
+            db.execute('UPDATE second_dim_for_bluesky SET posts = (?) WHERE item_id == (?)',
                         [p_insertion_list[e], e])
             db.commit()
           # Then, we continue to insert if there are more posts than follows. 

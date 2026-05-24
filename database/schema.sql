@@ -2,7 +2,9 @@ drop table if exists first_dim_for_bluesky;
 create table first_dim_for_bluesky (
     item_id integer primary key autoincrement,
     "name" text not null,
-    did text not null
+    did text not null,
+    age_months integer not null,
+    pronouns text not null
 );
 
 drop table if exists first_dim_for_x;

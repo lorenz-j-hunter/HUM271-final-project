@@ -10,10 +10,12 @@ def get_bluesky_csv(db):
   consolidated: list[dict[str,list[str]]] = []
   # We open the first dimension here. The only column opened is the one
   # with one dimension.
-  cur = db.execute('SELECT item_id, name FROM first_dim_for_bluesky')
+  cur = db.execute('SELECT item_id, name, age_months, pronouns FROM first_dim_for_bluesky')
   f = cur.fetchall()
   item_ids: list[int] = [row[0] for row in f]
   names: list[str] = [row[1] for row in f]
+  ages: list[int] = [row[2] for row in f]
+  pronouns: list[str] = [row[3] for row in f]
   # Now, we extract from this. We put each cell in a dict.
   # This is so that the data inside can be used to gather data
   # on the user later.
@@ -28,12 +30,14 @@ def get_bluesky_csv(db):
     # `item_id`, so it is okay to traverse with it.
     consolidated.append(dict({
       'datum': [names[item_id-1]], # account for zero-indexing.
+      'age': [str(ages[item_id-1])], 
+      'pronouns': [pronouns[item_id-1]],
       'follows': follows,
       'posts': posts
     }))
   # We write to the file now. 
   with open('../csvfiles/bluesky.csv', 'w', newline='\n') as csvfile:
-    field_names = ['name', 'follows', 'posts']
+    field_names = ['name', 'account age', 'pronouns', 'follows', 'posts']
     writer = csv.DictWriter(csvfile, fieldnames=field_names)
     writer.writeheader()
     for item_id in item_ids:
@@ -44,12 +48,16 @@ def get_bluesky_csv(db):
         for i in range(len(posts)):
           writer.writerow({
             'name': names[item_id-1],
+            'account age': ages[item_id-1],
+            'pronouns': pronouns[item_id-1],
             'follows': follows[i],
             'posts': posts[i]
           })
         for i in range(len(posts), len(follows)):
           writer.writerow({
             'name': names[item_id-1],
+            'account age': ages[item_id-1],
+            'pronouns': pronouns[item_id-1],
             'follows': follows[i],
             'posts': 'None' 
           })
@@ -58,21 +66,26 @@ def get_bluesky_csv(db):
         for i in range(len(follows)):
           writer.writerow({
             'name': names[item_id-1],
+            'account age': ages[item_id-1],
+            'pronouns': pronouns[item_id-1],
             'follows': follows[i],
             'posts': posts[i]
           })
         for i in range(len(follows), len(posts)):
           writer.writerow({
             'name': names[item_id-1],
+            'account age': ages[item_id-1],
+            'pronouns': pronouns[item_id-1],
             'follows': 'None',
             'posts': posts[i]
-
           })
       # case 3: number of follows == number of posts
       elif len(posts) == len(follows):
         for i in range(len(follows)):
           writer.writerow({
             'name': names[item_id-1],
+            'account age': ages[item_id-1],
+            'pronouns': pronouns[item_id-1],
             'follows': follows[i],
             'posts': posts[i]
           })
@@ -221,7 +234,7 @@ def get_pornhub_csv(db, max_tags=10):
           else:
             consolidated[max_tags*(title_id-1) + counter]['tags'] = 'None'
           counter += 1
-  # Now, we open a flat file and insert to it. 
+  # Now, we open a flat file and insert to it.
   with open('../csvfiles/pornhub.csv', 'w', newline='\n') as csvfile:
     field_names = ['title', 'title_id', 'pornstar', 'tags']
     writer = csv.DictWriter(csvfile, fieldnames=field_names)

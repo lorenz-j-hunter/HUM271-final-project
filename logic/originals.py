@@ -94,7 +94,6 @@ def get_x(x_length: int) -> list[list[str] | dict[str, str] | dict[str, list]]:
   # Now, we get a list of posts for each user.
   x_posts: dict[str, list[str]] = {}
   for id in x_user_ids:
-    time.sleep(10) # rate limits.
     # Make the request.
     url = f"https://api.x.com/2/users/{id}/tweets"
     headers = {"Authorization": f"Bearer {os.environ['X_BEARER_TOKEN']}"}
