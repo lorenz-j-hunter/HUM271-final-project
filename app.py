@@ -75,12 +75,8 @@ def main():
 @app.route('/bluesky', methods=['POST', 'GET'])
 def bluesky():
   """Open the route which uses the bluesky api.
-  Here, we gather the info needed to create a CSV
-  We store the following data as columns:
-  - username
-  - gender/pronouns
-  - the user's follows (who they are following)
-  - the user's posts (title text)
+  - Here, we gather the info needed to create a CSV
+  - We also store the stuff in a SQLite database
   """
   if request.method == 'GET':
     init_db()
@@ -107,15 +103,7 @@ def x():
   """Open the route which uses the x api. 
   - Here, we gather the info needed to create a CSV
   - We also store the data we fetch in a database.
-  - The raw data is sent as arguments into an HTML file, while
-    raw data is also stored in a database should a developer
-    want to operate on it.
   """
-  # We have dictionaries of (1) user responses, (2) follows responses, and (3) post responses from above.
-  # Now, we (1) create item objects of them, (2) store them in lists, (3) put them in the database.
-  # We also add to the second dimension if necessary.
-  #
-  # So we begin right here with creating item objects and storing those in lists. 
   if request.method == 'GET':
     init_db()
     x_length: int = 10 # The user is required to write to this.
@@ -135,9 +123,6 @@ def pornhub():
   """Open the route which uses the pornhub api. 
   - Here, we gather the info needed to create a CSV
   - We also store the data we fetch in a database.
-  - The raw data is sent as arguments into an HTML file, while
-    raw data is also stored in a database should a developer
-    want to operate on it.
   """
   if request.method == 'GET':
     init_db()

@@ -1,6 +1,4 @@
 from flask import render_template
-from utils.utils import extract
-from utils.classes import item
 import csv
 """Functions for returning the csv."""
 

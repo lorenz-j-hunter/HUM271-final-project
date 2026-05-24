@@ -4,6 +4,7 @@ from utils.utils import get_age
 from utils.classes import compound
 
 def bsky(db, bluesky_length=10):
+  """Add response data to the Bluesky database table."""
   actors: dict[str, list[dict[str, str]]] = get_bluesky(bluesky_length) 
   # Now we define some common variables. 
   # `identifiers` is a list of handles of users.
@@ -42,7 +43,7 @@ def bsky(db, bluesky_length=10):
     posts_limit = len(post_response.json().get('posts'))
     insertion_list: list[str] = []
     for i in range(posts_limit):
-      # insert an item.
+      # insert a post uri.
       insertion_list.append(post_response.json().get('posts')[i].get('uri'))
     all_posts[identifier] = insertion_list
     # Now here we gather all follow data of the user in question.
@@ -58,7 +59,7 @@ def bsky(db, bluesky_length=10):
     )
     if follows_response: # Sometimes, follows_response is None. 
       follows_limit = len(follows_response.json().get('follows'))
-      # Insert an item.
+      # insert the user ID of the follow.
       insertion_list: list[str] = []
       for i in range(follows_limit):
         insertion_list.append(follows_response.json().get('follows')[i].get('did'))
@@ -106,6 +107,9 @@ def bsky(db, bluesky_length=10):
           db.commit()
 
 def x(db, x_length=10):
+  """Add response data to the X database table."""
+  # We have dictionaries of (1) user responses, (2) follows responses, and (3) post responses from above.
+  # Now we (1) add user responses data to first_dim, (2) add follows/post data to second dim.
   # Unpacking... We get the responses here.
   package: list = get_x(x_length) 
   x_user_ids: list[str] = package[0] 
@@ -162,6 +166,7 @@ def x(db, x_length=10):
     item_id += 1
 
 def pornhub(db, request, pornhub_length=10):
+  """Add response data to the Pornhub database table."""
   # Process these inputs from user. Used to get the package. 
   pornstars_arg = request.args.get('pornstars')
   if pornstars_arg == '':
