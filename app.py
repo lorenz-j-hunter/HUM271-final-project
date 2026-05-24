@@ -1,11 +1,9 @@
-import os, requests, asyncio  
+import os, asyncio
 from flask import Flask, render_template, g, request, redirect, url_for
 from sqlite3 import dbapi2 as sqlite3
-from utils.utils import get_age 
 from logic import originals as responses
 from logic import process
 from logic import csv as files
-from utils.classes import compound
 
 """Create the app and make db commands."""
 app = Flask(__name__)
@@ -23,12 +21,31 @@ def connect_db():
     return rv
 
 
-def init_db():
-    """Initializes the database."""
-    db = get_db()
-    with app.open_resource('database/schema.sql', mode='r') as f:
-        db.cursor().executescript(f.read())
-    db.commit()
+def init_db(database='all'):
+  """Initializes the database."""
+  # check to see if arguments are valid.
+  options: list[str] = ['all', 'bluesky', 'x', 'pornhub']
+  if database not in options:
+    raise TypeError('init_db() argument not in list of options.')
+  # Selectively initialize the database.
+  db = get_db()
+  if database == 'all':
+    with app.open_resource('database/bluesky.sql', mode='r') as f:
+      db.cursor().executescript(f.read())
+    with app.open_resource('database/x.sql', mode='r') as f:
+      db.cursor().executescript(f.read()) 
+    with app.open_resource('database/pornhub.sql', mode='r') as f:
+      db.cursor().executescript(f.read()) 
+  elif database == 'bluesky':
+    with app.open_resource('database/bluesky.sql', mode='r') as f:
+      db.cursor().executescript(f.read())
+  elif database == 'x':
+    with app.open_resource('database/x.sql', mode='r') as f:
+      db.cursor().executescript(f.read()) 
+  elif database == 'pornhub':
+    with app.open_resource('database/pornhub.sql', mode='r') as f:
+      db.cursor().executescript(f.read()) 
+  db.commit()
 
 
 @app.cli.command('initdb')
@@ -69,6 +86,7 @@ def start_jetstream_listener():
 
 @app.route('/', methods=['GET'])
 def main():
+  init_db()
   return render_template('main.html')
 
 
@@ -79,7 +97,7 @@ def bluesky():
   - We also store the stuff in a SQLite database
   """
   if request.method == 'GET':
-    init_db()
+    init_db('bluesky')
     # Before we do anything, we need to reset.
     # This means getting API responses and deleting the previous 
     # request information.
@@ -105,7 +123,7 @@ def x():
   - We also store the data we fetch in a database.
   """
   if request.method == 'GET':
-    init_db()
+    init_db('x')
     x_length: int = 10 # The user is required to write to this.
     # Here, we bug-fix. We raise an error if the user entered the wrong data. 
     try:
@@ -125,7 +143,7 @@ def pornhub():
   - We also store the data we fetch in a database.
   """
   if request.method == 'GET':
-    init_db()
+    init_db('pornhub')
     pornhub_length: int = 10 # user is required to write to this
     # Here, we bug-fix. We raise an error if the user entered the wrong data.
     try:
