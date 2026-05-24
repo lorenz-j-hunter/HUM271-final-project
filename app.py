@@ -3,6 +3,7 @@ from flask import Flask, render_template, g, request, redirect, url_for
 from sqlite3 import dbapi2 as sqlite3
 from utils.utils import get_age 
 from logic import originals as responses
+from logic import process
 from logic import csv as files
 from utils.classes import compound
 
@@ -96,115 +97,9 @@ def bluesky():
       bluesky_length = int(request.args.get('bluesky_length', 'None')) 
     except ValueError:
       return redirect(url_for('static', filename='notfound.html'))
-    actors: dict[str, list[dict[str, str]]] = responses.get_bluesky(bluesky_length) 
-    # Now we define some common variables. 
-    # `identifiers` is a list of handles of users.
-    # This is on same dimension as 'bluesky_length' but not for 'follows_limit'.
-    identifiers: list[str] = []
-    posts_endpoint: str = "https://api.bsky.app/xrpc/app.bsky.feed.searchPosts"
-    follows_endpoint: str = "https://api.bsky.app/xrpc/app.bsky.graph.getFollows"
-    # Key: Handle of user in question
-    # Value: URI of text from post.
-    all_posts: dict[str, list[str]] = {}
-    # Key: Handle of the user in question
-    # Value: List of handles of follows.
-    all_follows: dict[str, list[str]] = {}
-    follows_limit: int = 100 # the max number of follows to get per user.
-    posts_limit: int = 100 # the max number of posts to get per user. 
-    # Here, we traverse the thing by actor.
-    # We separate actors' handles from the json first to do this.
-    for e in actors['actors']:
-      identifiers.append(e['handle'])
-    for identifier in identifiers:
-      # Here, we gather all post data of the user in question.
-      # It is stored in a dict; the DID of the user in question is
-      # the key and the corresponding *list* of posts is the value.
-      posts_params: dict[str, str | int] = {
-        "q" : "a",
-        "author" : identifier,
-        'limit' : posts_limit 
-      }
-      post_response: requests.Response = requests.get(
-        posts_endpoint, posts_params 
-      )
-      if post_response.status_code == 403: # AppView deliberately returns 403 to reduce load 
-        all_posts[identifier] = []
-        all_follows[identifier] = []
-        continue 
-      posts_limit = len(post_response.json().get('posts'))
-      insertion_list: list[str] = []
-      for i in range(posts_limit):
-        # insert an item.
-        insertion_list.append(post_response.json().get('posts')[i].get('uri'))
-      all_posts[identifier] = insertion_list
-      # Now here we gather all follow data of the user in question.
-      # These are inserted into a dictionary called 'all_follows', which
-      # has as it's key the handle and as a value the list of all follows
-      # (their handles).
-      follows_params: dict[str, str | int] = {
-        "actor" : identifier,
-        "limit" : follows_limit 
-      } 
-      follows_response: requests.Response = requests.get(
-        follows_endpoint, follows_params  
-      )
-      if follows_response: # Sometimes, follows_response is None. 
-        follows_limit = len(follows_response.json().get('follows'))
-        # Insert an item.
-        insertion_list: list[str] = []
-        for i in range(follows_limit):
-          insertion_list.append(follows_response.json().get('follows')[i].get('did'))
-        all_follows[identifier] = insertion_list 
-      else: # In this case, we still have to fill all_follows with something.
-        all_follows[identifier] = [] 
-    # Finally, we add these columns to a database.
-    # It's in the database that the data will be operated on
-    # to find refined things like 'perceived opinion'.
-    with get_db() as db:
-      # We first insert to the first dimension here, then move onto the second dimension.
-      for actor in range(bluesky_length): # assume all of these lists are the same length
-        # the age in months must be computed from the real response data.
-        age_months: int = get_age(actors['actors'][actor].get('createdAt', 'None'))
-        db.execute('INSERT INTO first_dim_for_bluesky (name, did, age_months, pronouns) VALUES (?, ?, ?, ?)',
-                   [actors['actors'][actor].get('displayName', 'None'),
-                    actors['actors'][actor].get('did', 'None'),
-                    age_months,
-                    actors['actors'][actor].get('pronouns', 'None')])
-        db.commit()
-        # Now we add to the second dimension for follows and posts. 
-        # First we insert into both columns for follows. Then, we update the rows
-        # that have been filled with posts.
-        # Finally, to cover all cases, we may insert after that, too.
-        for _ in range(follows_limit):
-          f_insertion_list: list[str] = all_follows[identifiers[actor]]
-          for e in range(len(f_insertion_list)):
-            db.execute('INSERT INTO second_dim_for_bluesky (follows, posts, item_id) VALUES (?, ?, ?)',
-                      [f_insertion_list[e],
-                       'None',
-                       str(actor)]) 
-            db.commit()
-        for _ in range(posts_limit):
-          f_insertion_list_len: int = len(all_follows[identifiers[actor]])
-          p_insertion_list: list[str] = all_posts[identifiers[actor]]
-          # We first update what has already been inserted.
-          for e in range(f_insertion_list_len):
-            db.execute('UPDATE second_dim_for_bluesky SET posts = (?) WHERE item_id == (?)',
-                        [p_insertion_list[e], e])
-            db.commit()
-          # Then, we continue to insert if there are more posts than follows. 
-          if len(p_insertion_list) > f_insertion_list_len:
-            for e in range(f_insertion_list_len, len(p_insertion_list)):
-              db.execute('INSERT INTO second_dim_for_bluesky (follows, posts, item_id) VALUES (?, ?, ?)',
-                          ['None',
-                           p_insertion_list[e],
-                           str(actor)])
-              db.commit()
-      # Because getting the CSV is a whole new thing in itself, we reserve a function for it.
-      files.get_bluesky_csv(db)      
-      # We will pull data from another function in order to display the results.
-      # If we do want to send anything in as an argument, it will be something
-      # that is required for this. 
-      return render_template('bluesky.html')
+    process.bsky(db, bluesky_length) 
+    files.get_bluesky_csv(db)      
+    return render_template('bluesky.html')
   return render_template('bluesky.html')
 
 @app.route('/x', methods=['GET', 'POST'])
@@ -229,62 +124,8 @@ def x():
       x_length = int(request.args.get('x_length', 'None')) 
     except ValueError:
       return redirect(url_for('static', filename='notfound.html'))
-    # Unpacking... We get the responses here.
-    package: list = responses.get_x(x_length) 
-    x_user_ids: list[str] = package[0] 
-    x_users: dict[str, dict[str,str]] = package[1] 
-    x_follows: dict[str, list[str]] = package[2] 
-    x_posts: dict[str, list[str]] = package[3]
-    with get_db() as db:
-      for did in x_user_ids:
-        # Two-dimensional data fields have 'head' as their entry in the first dimension.
-        db.execute('INSERT INTO first_dim_for_x (name, did, age, affiliation, verified) VALUES (?, ?, ?, ?)',
-                  [x_users[did]['username'],
-                   did,
-                   get_age(x_users[did]['created_at']),
-                   x_users[did]['affiliation'],
-                   x_users[did]['verified']])
-        db.commit()
-      # Here we begin adding to the second dimension, starting with follows. 
-      # The database format is exactly the same here as it is for
-      # def bluesky(). Each person's follows or posts is printed to the database column,
-      # all with an item_id unique to that person. The person in question can be
-      # identified using the 'did' element within each entry. 
-      item_id: int = 0
-      for user in x_user_ids:
-        follows_list = x_follows[user]
-        posts_list = x_posts[user]
-        len_follows_list = len(follows_list)
-        len_posts_list = len(posts_list)
-        # Like in Bluesky, we first insert from the list with the longest length. (say, `follows_list`).
-        # To satisfy the 'not null' condition, the entries parallel to it from the
-        # other list (say, `posts_list`) are 'None'.
-        # Then, we update the list to change the 'None' to entries from `posts_list`.
-        # Finally, if `posts_list` is longer than `follows_list`, we insert it only.
-        if len_follows_list >= len_posts_list:
-          for i in range(len_follows_list):
-            # Insert for follows_list
-            db.execute("INSERT INTO second_dim_for_x (follows, posts, item_id) VALUES (?, ?, ?)",
-                      [follows_list[i], 'None', str(item_id)]) # To know which to update , we keep track of the item_id.
-            db.commit()
-          # Update posts_list
-          for i in range(len_posts_list):
-            db.execute('UPDATE second_dim_for_x SET posts = (?) WHERE item_id == (?)',
-                        [posts_list[i], str(item_id)])
-            db.commit()
-        else: # len_posts_list > len_follows_list
-          for i in range(len_posts_list):
-            # Insert for posts_list
-            db.execute("INSERT INTO second_dim_for_x (follows, posts, item_id) VALUES (?, ?, ?)",
-                        ['None', str(posts_list[i]), str(item_id)])
-            db.commit()
-          # Update for follows_list
-          for i in range(len_follows_list):
-            db.execute('UPDATE second_dim_for_x SET follows = (?) WHERE item_id == (?)',
-                        [str(follows_list[i]), str(item_id)])
-            db.commit()
-        item_id += 1
-    # Because getting a csv could have its own function dedicated to it, it does. 
+    db = get_db()
+    process.x(db, x_length)
     files.get_x_csv(db)
     return render_template('x.html')
   return render_template('x.html')
@@ -306,73 +147,8 @@ def pornhub():
       pornhub_length = int(request.args.get('pornhub_length', 'None')) 
     except ValueError:
       return redirect(url_for('static', filename='notfound.html'))
-    # Process these inputs from user. Used to get the package. 
-    pornstars_arg = request.args.get('pornstars')
-    if pornstars_arg == '':
-      pornstars_arg = None
-    tags_arg = request.args.get('tags')
-    if tags_arg == '':
-      tags_arg = None
-    package: list = responses.get_pornhub(
-      pornhub_length,
-      pornstars_arg=pornstars_arg,
-      tags=tags_arg
-    )
-    video_search: list[compound] = package[0] 
-    pornstars: list[str] = package[1]
-    url = "https://pornhub2.p.rapidapi.com/v2/video_by_id"
-    # These are our return values. Each represent a column of the CSV we want to create with this
-    # function.
-    # Unlike X or Bluesky, the API we use doesn't store follow/profile data. Only title and text.
-    # We might normally crawl follower graphs, but we cant do that here in other words.
-    # First, we extract the video ID for each response. Then, we create another 
-    # request with the ID. 
-    video_ids: list[str] = []
-    with get_db() as db:
-      for i in range(pornhub_length):
-        # We're extracting the video ID now. We encased each `video_search` entry in;
-        # now we must convert each to a dict.
-        response: requests.Response = video_search[i].get('response') # pyright: ignore[reportAssignmentType]
-        pornstar: str = video_search[i].get('comment') # pyright: ignore[reportAssignmentType]
-        raw: dict[str, str] = response.json().get('data').get('videos')[i]
-        video_id: str = raw['video_id']
-        views: int = int(raw['views'])
-        rating: str = str(raw['rating'])
-        video_ids.append(video_id)
-        # Now, we're searching for this video using its ID. 
-        querystring = {"id":video_id,"thumbsize":"small"}
-        headers = {
-          "x-rapidapi-key": os.environ['PORNHUB_KEY'],
-          "x-rapidapi-host": "pornhub2.p.rapidapi.com",
-          "Content-Type": "application/json"
-        }
-        response: requests.Response = requests.get(url, headers=headers, params=querystring)
-        # Now it's possible for us to get the details of it.
-        # We grab the title and tags. But remember, since tags is two-dimensional, we 
-        # only insert head for that here and then get it later. 
-        db.execute('INSERT INTO first_dim_for_pornhub (title, pornstar, views, rating) VALUES (?, ?, ?, ?)',
-                  [video_id, pornstar, views, rating])
-    # Next, we handle the second dimension.
-    # We use the ids gathered before to search for title and tags. 
-    # We make a request for each iteration.
-    with get_db() as db:
-      for item_id in range(pornhub_length):
-        # Now, we're searching for this video using its ID. 
-        querystring = {"id":video_ids[item_id],"thumbsize":"small"}
-        headers = {
-          "x-rapidapi-key": os.environ['PORNHUB_KEY'],
-          "x-rapidapi-host": "pornhub2.p.rapidapi.com",
-          "Content-Type": "application/json"
-        }
-        response: requests.Response = requests.get(url, headers=headers, params=querystring)
-        tags: list[dict[str,str]] = response.json().get('data').get('video').get('tags')
-        # For this video, we just extracted its title and a list of tags. Now, we insert
-        # them into the database this way.
-        for e in tags:
-          db.execute('INSERT INTO second_dim_for_pornhub (item_id, tags) VALUES (?, ?)',
-                    [item_id+1, e.get('tag_name', 'None')])
-          db.commit()
-    # Because getting a csv could have its own function dedicated to it, it does.
+    db = get_db()
+    process.pornhub(db, request, pornhub_length)
     files.get_pornhub_csv(db)
-    return render_template('pornhub.html',)
-  return render_template('pornhub.html',)
+    return render_template('pornhub.html')
+  return render_template('pornhub.html')
