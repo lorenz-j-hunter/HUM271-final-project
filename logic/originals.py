@@ -44,7 +44,7 @@ def get_bluesky(bluesky_length: int) -> dict[str, list[dict[str, str]]]:
   return actors
 
 """Global API responses for X."""
-def get_x(x_length: int) -> list[list[str] | dict[str, str] | dict[str, list]]:
+def get_x(x_length: int) -> list[list[str] | dict[str, str] | dict[str, list] | dict[str, dict[str,str]]]:
   """API responses from X.
   Return [x_user_ids, x_users, x_follows, x_posts], where `x_user_ids` is `list[str],
   `x_users` is `dict[str, str]`, `x_follows` is `dict[str, list[str]]`, and
@@ -61,21 +61,22 @@ def get_x(x_length: int) -> list[list[str] | dict[str, str] | dict[str, list]]:
     "user.fields": ['username']
   }
   x_posts_response = requests.get(x_posts_url, headers=x_posts_headers, params=x_posts_params)
+  # Here, we extract the user ids from the posts they bear.
   x_user_ids: list[str] = []
   for post in x_posts_response.json().get('data'):
     x_user_ids.append(post.get('author_id'))
-
   # Now, we map the user ids to the usernames that they bear. 
   # We need to do this before we call requests.
-
-  x_users: dict[str, str] = {}
+  x_users: dict[str, dict[str,str]] = {}
   for id in x_user_ids:
     url = f"https://api.x.com/2/users/{id}"
     headers = {"Authorization": f"Bearer {os.environ['X_BEARER_TOKEN']}"}
-    params = {"user.fields": ['username']}
+    params = {"user.fields": ['username', 'created_at', 'affiliation', 'verified']}
     response = requests.get(url, headers=headers, params=params)
-    x_users[id] = response.json().get('data').get('username')
-
+    # Here is how we map several data of the user to their user id.
+    x_users[id] = {}
+    for param in ['username', 'created_at', 'affiliation', 'verified']:
+      x_users[id][param] = response.json().get('data').get(param)
   # Now, we get follow data.
   x_follows: dict[str, list[str]] = {}
   for id in x_user_ids:

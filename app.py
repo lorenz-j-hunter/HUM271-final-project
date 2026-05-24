@@ -232,14 +232,18 @@ def x():
     # Unpacking... We get the responses here.
     package: list = responses.get_x(x_length) 
     x_user_ids: list[str] = package[0] 
-    x_users: dict[str, str] = package[1] 
+    x_users: dict[str, dict[str,str]] = package[1] 
     x_follows: dict[str, list[str]] = package[2] 
     x_posts: dict[str, list[str]] = package[3]
     with get_db() as db:
       for did in x_user_ids:
         # Two-dimensional data fields have 'head' as their entry in the first dimension.
-        db.execute('INSERT INTO first_dim_for_x (name, did) VALUES (?, ?)',
-                  [x_users[did], did])
+        db.execute('INSERT INTO first_dim_for_x (name, did, age, affiliation, verified) VALUES (?, ?, ?, ?)',
+                  [x_users[did]['username'],
+                   did,
+                   get_age(x_users[did]['created_at']),
+                   x_users[did]['affiliation'],
+                   x_users[did]['verified']])
         db.commit()
       # Here we begin adding to the second dimension, starting with follows. 
       # The database format is exactly the same here as it is for

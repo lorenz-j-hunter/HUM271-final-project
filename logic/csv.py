@@ -98,10 +98,13 @@ def get_x_csv(db):
   # Because the other two columns (follows and posts) are two-dimensional,
   # they will be fetched in a different scope.
   consolidated: list[dict[str,list[str]]] = []
-  cur = db.execute('SELECT item_id, name FROM first_dim_for_x') 
+  cur = db.execute('SELECT item_id, name, age, affiliation, verified FROM first_dim_for_x') 
   f = cur.fetchall()
   item_ids: list[int] = [row[0] for row in f]
   names: list[str] = [row[1] for row in f]
+  ages: list[int] = [row[2] for row in f]
+  affiliation: list[str] = [row[3] for row in f]
+  verified: list[str] = [row[4] for row in f]
   # Now we do get follows and posts.
   # We want each list of follows and posts to still be associated with the user
   # in question for this data type, so we will append a list do 
@@ -125,7 +128,10 @@ def get_x_csv(db):
         posts_data.append(str(post))
     # Now, we add these newly populated lists `follows_data`, etc into the `consolidated`. 
     consolidated.append(dict({
-      'datum': [names[item_id-1]],
+      'name': [names[item_id-1]],
+      'age': [str(ages[item_id-1])],
+      'affiliation': [affiliation[item_id-1]],
+      'verified': [verified[item_id-1]],
       'follows': follows_data,
       'posts': posts_data
     }))
@@ -136,7 +142,7 @@ def get_x_csv(db):
   # all of the follows have been printed. Likewise if there are more follows than posts. 
   # Now, we open a flat file and insert to it. 
   with open('../csvfiles/x.csv', 'w', newline='\n') as csvfile:
-    field_names = ['name', 'did', 'follows', 'posts']
+    field_names = ['name', 'did', 'account age', 'affiliation', 'verification status' 'follows', 'posts']
     writer = csv.DictWriter(csvfile, fieldnames=field_names)
     writer.writeheader()
     for elem in consolidated:
@@ -146,15 +152,21 @@ def get_x_csv(db):
       if len(elem['follows']) > len(elem['posts']):
         for i in range(len(elem['posts'])):
           writer.writerow({
-            'name': elem.get('datum', 'None')[0],  
-            'did': elem.get('datum', 'None')[0],  
+            'name': elem.get('name', 'None')[0],  
+            'did': elem.get('name', 'None')[0], 
+            'account age': elem.get('age', 'None')[0],
+            'affiliation': elem.get('affiliation', 'None')[0],
+            'verification status': elem.get('verified', 'None')[0], 
             'follows': elem['follows'][i],
             'posts': elem['posts'][i]
           })
         for i in range(len(elem['posts']), len(elem['follows'])):
           writer.writerow({
-            'name': elem.get('datum', 'None'), 
-            'did': elem.get('datum', 'None'), 
+            'name': elem.get('name', 'None'), 
+            'did': elem.get('name', 'None'), 
+            'account age': elem.get('age', 'None')[0],
+            'affiliation': elem.get('affiliation', 'None')[0],
+            'verification status': elem.get('verified', 'None')[0], 
             'follows': elem['follows'][i],
             'posts': '"None"' 
           })
@@ -162,15 +174,21 @@ def get_x_csv(db):
       elif len(elem['posts']) > len(elem['follows']):
         for i in range(len(elem['follows'])):
           writer.writerow({
-            'name': elem.get('datum', 'None'), 
-            'did': elem.get('datum', 'None'), 
+            'name': elem.get('name', 'None'), 
+            'did': elem.get('name', 'None'), 
+            'account age': elem.get('age', 'None')[0],
+            'affiliation': elem.get('affiliation', 'None')[0],
+            'verification status': elem.get('verified', 'None')[0], 
             'follows': elem['follows'][i],
             'posts': elem['posts'][i]
           })
         for i in range(len(elem['posts']), len(elem['follows'])):
           writer.writerow({
-            'name': elem.get('datum', 'None'), 
-            'did': elem.get('datum', 'None'), 
+            'name': elem.get('name', 'None'), 
+            'did': elem.get('name', 'None'), 
+            'account age': elem.get('age', 'None')[0],
+            'affiliation': elem.get('affiliation', 'None')[0],
+            'verification status': elem.get('verified', 'None')[0], 
             'follows': '"None"',
             'posts': elem['posts'][i] 
           })
@@ -178,8 +196,11 @@ def get_x_csv(db):
       else:
         for i in range(len(elem['follows'])):
           writer.writerow({
-            'name': elem.get('datum', 'None'),
-            'did': elem.get('datum', 'None'), 
+            'name': elem.get('name', 'None'),
+            'did': elem.get('name', 'None'), 
+            'account age': elem.get('age', 'None')[0],
+            'affiliation': elem.get('affiliation', 'None')[0],
+            'verification status': elem.get('verified', 'None')[0], 
             'follows': elem['follows'][i],
             'posts': elem['posts'][i]
           })
