@@ -190,7 +190,7 @@ def get_pornhub_csv(db, max_tags=10):
   The csv represents an undirected and simple graph."""
   # We inserted the video details in the function that precedes this (pornhub())
   # Now, we get them back.
-  cur = db.execute("SELECT item_id, title, pornstar FROM first_dim_for_pornhub")
+  cur = db.execute("SELECT item_id, title, pornstar, views, rating FROM first_dim_for_pornhub")
   f = cur.fetchall()
   # star_ids is different from item_ids because elements are unique.
   # item_ids (videos) contains elements which correspond to which tags they
@@ -198,6 +198,8 @@ def get_pornhub_csv(db, max_tags=10):
   title_ids: list[int] = [row[0] for row in f]
   titles: list[str] = [row[1] for row in f]
   pornstars: list[str] = [row[2] for row in f]
+  views: list[int] = [row[3] for row in f]
+  ratings: list[str] = [row[4] for row in f]
   # Now we get the second dimension.
   cur = db.execute('SELECT item_id, tags FROM second_dim_for_pornhub')
   f = cur.fetchall()
@@ -228,6 +230,8 @@ def get_pornhub_csv(db, max_tags=10):
           consolidated[max_tags*(title_id-1) + counter]['title'] = titles[int(title_id)-1]
           consolidated[max_tags*(title_id-1) + counter]['title_id'] = str(title_id)
           consolidated[max_tags*(title_id-1) + counter]['pornstar'] = pornstars[int(video_id-1)].strip('()').strip(',').strip('\'') # a pornstar
+          consolidated[max_tags*(title_id-1) + counter]['views'] = str(views[int(title_id)-1])
+          consolidated[max_tags*(title_id-1) + counter]['rating'] = ratings[int(title_id)-1]
           # Only insert if there are at least `max_tags`` tags. 
           if video_to_tags[str(title_id)][counter]:
             consolidated[max_tags*(title_id-1) + counter]['tags'] = video_to_tags[str(title_id)][counter] # a tag.
@@ -236,7 +240,7 @@ def get_pornhub_csv(db, max_tags=10):
           counter += 1
   # Now, we open a flat file and insert to it.
   with open('../csvfiles/pornhub.csv', 'w', newline='\n') as csvfile:
-    field_names = ['title', 'title_id', 'pornstar', 'tags']
+    field_names = ['title', 'title_id', 'views', 'rating', 'pornstar', 'tags']
     writer = csv.DictWriter(csvfile, fieldnames=field_names)
     writer.writeheader()
     for row in consolidated:

@@ -332,6 +332,8 @@ def pornhub():
         pornstar: str = video_search[i].get('comment') # pyright: ignore[reportAssignmentType]
         raw: dict[str, str] = response.json().get('data').get('videos')[i]
         video_id: str = raw['video_id']
+        views: int = int(raw['views'])
+        rating: str = str(raw['rating'])
         video_ids.append(video_id)
         # Now, we're searching for this video using its ID. 
         querystring = {"id":video_id,"thumbsize":"small"}
@@ -344,8 +346,8 @@ def pornhub():
         # Now it's possible for us to get the details of it.
         # We grab the title and tags. But remember, since tags is two-dimensional, we 
         # only insert head for that here and then get it later. 
-        db.execute('INSERT INTO first_dim_for_pornhub (title, pornstar) VALUES (?, ?)',
-                  [video_id, pornstar])
+        db.execute('INSERT INTO first_dim_for_pornhub (title, pornstar, views, rating) VALUES (?, ?, ?, ?)',
+                  [video_id, pornstar, views, rating])
     # Next, we handle the second dimension.
     # We use the ids gathered before to search for title and tags. 
     # We make a request for each iteration.

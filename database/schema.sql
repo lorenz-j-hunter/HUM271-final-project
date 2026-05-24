@@ -18,7 +18,9 @@ drop table if exists first_dim_for_pornhub;
 create table first_dim_for_pornhub (
     item_id integer primary key autoincrement,
     title text not null,
-    pornstar text not null
+    pornstar text not null,
+    views integer not null,
+    rating text not null
 );
 
 
