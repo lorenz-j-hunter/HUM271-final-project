@@ -1,6 +1,6 @@
-# Iteration Plan 1 – Campus Hub
+# Iteration Plan 1 – HUM271 Project 
 
-## Team: Campus Hub Team
+## Team: HUM271 Project Team 
 
 ## Iteration Dates:
 May 18 – May 25, 2026
@@ -24,9 +24,7 @@ Make sure the program is working as intended.
 
 ## User Stories Included (Partial Progress – Priority 1)
 
-- Login / account system (structure only)
-- View all events (basic page setup)
-- Filter events (UI only)
+  -
 
 ---
 
@@ -35,40 +33,31 @@ Make sure the program is working as intended.
 ### 1. Backend: App Setup and Routing (Lorenz)
 
 - Create `app.py`
-- Initialize Flask app
-- Add basic routes:
-  - `/`
-  - `/login`
 
 Estimated: 10–12 hours
 
 ---
 
-### 2. Backend + Structure (Su Noble Aung)
+### 2. Backend + Structure (Lorenz)
 
 - Connect routes to templates
-- Prepare structure for event data
+- Create csv compiler
 
 Estimated: 6–8 hours
 
 ---
 
-### 3. Frontend: Base Templates (Kevin)
+### 3. Frontend: Base Templates (Lorenz)
 
-- Create `layout.html`
-- Create `main.html`
-- Create `login.html`
-- Apply layout inheritance
+- Add entire DOM structure
 
 Estimated: 8–10 hours
 
 ---
 
-### 4. Frontend: Page Structure (Rokin)
+### 4. Frontend: Page Structure (Lorenz)
 
-- Add sections to `main.html`
-- Add placeholder event list
-- Add basic filter UI
+- Add SCSS and Node custom features
 
 Estimated: 6 hours
 
