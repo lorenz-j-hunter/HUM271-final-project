@@ -131,8 +131,10 @@
           </li>
           <li>
             <form action="{{url_for('pornhub')}}" method="GET" class="nav-link link-body-emphasis" onsubmit="activate()">
-              Select Number of Responses 
-              <input type="text" name="pornhub_length">
+              Select your Type of Responses
+              <input type="text" name="pornhub_length" placeholder="Number of Responses" pattern="[0-9]{1,2}" required>
+              <input type="text" name="pornstars" placeholder="Pornstars">
+              <input type="text" name="tags" placeholder="Tags">
               <button type="submit">Submit</button>
             </form>
           </li>
