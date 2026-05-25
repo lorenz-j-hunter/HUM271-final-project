@@ -9,6 +9,5 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 // When the user clicks the button, the link becomes visible and remains so after page reloads.
 function activate() {
-  document.querySelector('#csv').style = 'content-visibility: visible;';
   localStorage.setItem('visibility_p', 'content-visibility: visible;');
 }

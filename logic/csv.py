@@ -252,9 +252,9 @@ def get_pornhub_csv(db, max_tags=10):
           consolidated[max_tags*(title_id-1) + counter]['views'] = str(views[int(title_id)-1])
           consolidated[max_tags*(title_id-1) + counter]['rating'] = ratings[int(title_id)-1]
           # Only insert if there are at least `max_tags`` tags. 
-          if video_to_tags[str(title_id)][counter]:
+          try:
             consolidated[max_tags*(title_id-1) + counter]['tags'] = video_to_tags[str(title_id)][counter] # a tag.
-          else:
+          except IndexError:
             consolidated[max_tags*(title_id-1) + counter]['tags'] = 'None'
           counter += 1
   # Now, we open a flat file and insert to it.

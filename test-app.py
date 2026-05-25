@@ -36,15 +36,30 @@ class Tests(unittest.TestCase):
 			# Assert that cells were rendered correctly. 
 			for item in text.split(','):
 				assert '#' not in item[0], item[len(item)]
+				assert '(' not in item[0], item[len(item)]
+				assert ')' not in item[0], item[len(item)]
 			# Assert that there are the correct number of columns inserted.
-#			assert len(text.split(',')) == 5 
+			assert len(text.split(',')) == 5
+		with webscraping.app.app_context():
+			db = webscraping.get_db()
+			# Ensure that database data for all columns is there.
+			cur = db.execute('SELECT * FROM first_dim_for_bluesky')
+			f = cur.fetchall()
+			item_ids = [row[0] for row in f]
+			names = [row[1] for row in f]
+			dids = [row[2] for row in f]
+			ages = [row[3] for row in f]
+			pronouns = [row[4] for row in f]
+			assert len(item_ids) == len(names) == len(dids) == len(ages) == len(pronouns)
 
 	def test_required_bluesky_0(self):
 		"""Ensure that it is required to enter `bluesky_length`."""
 		bluesky = self.app.get('/bluesky', data=dict())
-		assert bluesky.status_code != 200		
+		assert bluesky.status_code != 200
+
 
 	"""X tests."""
+
 
 	def test_enter_x(self):
 		"""Ensure we can enter the page and submit the data."""
@@ -83,6 +98,34 @@ class Tests(unittest.TestCase):
 			pornstars=['Evie Christian']
 		))
 		assert pornhub.status_code == 200
+
+	def test_pornhub_csv(self):
+		"""Enter the site, get a csv, and check to see if it has the right format."""
+		# Ensure that there is a csv to analyze. 
+		self.app.get('/pornhub', data=dict(
+			pornhub_length='5',
+			pornstar='Lily Slutty'
+		))
+		with open(os.path.relpath('../csvfiles/pornhub.csv')) as file:
+			text = file.readline()
+			# Assert that cells were rendered correctly. 
+			for item in text.split(','):
+				assert '#' not in item[0], item[len(item)]
+				assert '(' not in item[0], item[len(item)]
+				assert ')' not in item[0], item[len(item)]
+			# Assert that there are the correct number of columns inserted.
+			assert len(text.split(',')) == 6 
+		with webscraping.app.app_context():
+			db = webscraping.get_db()
+			# Ensure that database data for all columns is there.
+			cur = db.execute('SELECT * FROM first_dim_for_pornhub')
+			f = cur.fetchall()
+			item_ids = [row[0] for row in f]
+			titles = [row[1] for row in f]
+			pornstars = [row[2] for row in f]
+			views = [row[3] for row in f]
+			ratings = [row[4] for row in f]
+			assert len(item_ids) == len(titles) == len(pornstars) == len(views) == len(ratings)
 
 	def test_required_pornhub_0(self):
 		"""Entering `pornhub_length` should be required to submit the form."""
