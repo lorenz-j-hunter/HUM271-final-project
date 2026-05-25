@@ -1,4 +1,5 @@
 import asyncio, threading, websockets, json
+from sqlite3 import dbapi2 as sqlite3
 
 """Open a Websocket connection for Blyesky with bluesky firehose"""
 
@@ -25,48 +26,52 @@ async def jetstream_stream():
 
       yield data
 
-async def jetstream_worker(max_events=50):
+async def jetstream_worker(db_path, max_events, event_type):
   """Get from the stream."""
   count = 0
+  # connect database. 
+  db = sqlite3.connect(db_path, check_same_thread=False)
+  db.row_factory = sqlite3.Row
+  # sift through the stream
   async for event in jetstream_stream():  
-    await parse(event)
+    ret: dict[str, dict[str,str]] = await parse(event, event_type)
+    # Add to the database`
+    if ret['status'].get('message', 'None') == 'success':
+      if ret['type'].get('message', 'None') == f'app.bsky.feed.{event_type}':
+        db.execute('INSERT INTO jetstream (type, text, created_at) VALUES (?, ?, ?)',
+                  [ret['type'].get('message'),
+                   ret['text'].get('message'),
+                   ret['created_at'].get('message')])
+        db.commit()
     count += 1
     if count >= max_events:
       print("Reached max events, stopping worker")
       break
 
-events = []
-async def parse(event):
+async def parse(event, event_type):
   """Selectively add to the events list"""
   ret: dict[str, dict[str,str]] = {}
   
-  ret['did'] = event.get('did')
+  ret['did'] = {'message': event.get('did')}
 
   # The message may not be a commit.
   commit = event.get('commit')
   if not commit:
     ret['status'] = {'message': 'None'}
-    events.append(ret)
-    return
+    return ret
 
   # The message may not have a record.
   # The record is where all of the valuable info is.  
   record = commit.get('record')
   if not record:
     ret['status'] = {'message': 'None'}
-    events.append(ret)
-    return 
+    return ret
 
   ret['status'] = {'message': 'success'}
-  ret['type'] = record.get('$type')
+  ret['type'] = {'message': record.get('$type')}
 
-  # We only get posts.
-  if ret['type'] == 'app.bsky.feed.post':
-    ret['text'] = record.get('text')
-    ret['created_at'] = record.get('createdAt')
+  if ret['type'].get('message', 'None') == f'app.bsky.feed.{event_type}':
+    ret['text'] = {'message': record.get('text')}
+    ret['created_at'] = {'message': record.get('createdAt')}
 
-  events.append(ret)
-
-def get_events():
-  """Harvest the data from the jetstream"""
-  return events
+  return ret

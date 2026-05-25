@@ -25,7 +25,7 @@ def connect_db():
 def init_db(database='all'):
   """Initializes the database."""
   # check to see if arguments are valid.
-  options: list[str] = ['all', 'bluesky', 'x', 'pornhub']
+  options: list[str] = ['all', 'bluesky', 'x', 'pornhub', 'jetstream']
   if database not in options:
     raise TypeError('init_db() argument not in list of options.')
   # Selectively initialize the database.
@@ -45,6 +45,9 @@ def init_db(database='all'):
       db.cursor().executescript(f.read()) 
   elif database == 'pornhub':
     with app.open_resource('database/pornhub.sql', mode='r') as f:
+      db.cursor().executescript(f.read()) 
+  elif database == 'jetstream':
+    with app.open_resource('database/jetstream.sql', mode='r') as f:
       db.cursor().executescript(f.read()) 
   db.commit()
 
@@ -79,14 +82,22 @@ def close_db(error):
 def start_jetstream_listener():
   """Begin the jetstream for Bluesky. Then create the CSV for it. """
   # start stream
+  init_db('jetstream')
+  db = get_db()
   firehose.loop.call_soon_threadsafe(
     asyncio.create_task,
-    firehose.jetstream_worker(max_events=50)
+    firehose.jetstream_worker(
+      db_path=app.config['DATABASE'],
+      max_events=int(request.args.get('max_events', '0')),
+      event_type=request.args.get('pattern', 'post')
+    )
   )
-  posts: list[dict[str, dict[str,str]]] = firehose.get_events()
-  # get csv.
-  stream_files.get_jetstream_csv(posts)
   return render_template('bluesky.html') 
+
+@app.route('/get_stream_csv', methods=['GET'])
+def get_stream_csv():
+  stream_files.get_jetstream_csv(db_path=app.config['DATABASE'])
+  return render_template('bluesky.html')
 
 
 @app.route('/', methods=['GET'])
