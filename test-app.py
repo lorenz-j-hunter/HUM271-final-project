@@ -73,7 +73,35 @@ class Tests(unittest.TestCase):
 		x = self.app.get('/x', data=dict())
 		assert x.status_code != 200	
 
+	def test_x_csv(self):
+		"""Make sure the csv and database of X are proper."""
+		# Ensure that there is a csv to analyze. 
+		self.app.get('/x', data=dict(
+			x_length='5'
+		))
+		with open(os.path.relpath('../csvfiles/x.csv')) as file:
+			text = file.readline()
+			# Assert that cells were rendered correctly. 
+			for item in text.split(','):
+				assert '#' not in item[0], item[len(item)]
+				assert '(' not in item[0], item[len(item)]
+				assert ')' not in item[0], item[len(item)]
+			# Assert that there are the correct number of columns inserted.
+#			assert len(text.split(',')) == 6 
+		with webscraping.app.app_context():
+			db = webscraping.get_db()
+			# Ensure that database data for all columns is there.
+			cur = db.execute('SELECT * FROM first_dim_for_x')
+			f = cur.fetchall()
+			names = [row[0] for row in f]
+			account_ages = [row[1] for row in f]
+			affiliations = [row[2] for row in f]
+			verified = [row[3] for row in f]
+			assert len(names) == len(account_ages) == len(affiliations) == len(verified)
+
+
 	"""Pornhub tests."""
+
 
 	def test_enter_pornhub_0(self):
 		"""Enter pornhub without entering tags or pornstars."""
