@@ -1,9 +1,10 @@
 import os, asyncio
 from flask import Flask, render_template, g, request, redirect, url_for
 from sqlite3 import dbapi2 as sqlite3
-from logic import originals as responses
+from logic import websocket as firehose 
 from logic import process
 from logic import csv as files
+from logic import jetstream_csv as stream_files
 
 """Create the app and make db commands."""
 app = Flask(__name__)
@@ -76,12 +77,15 @@ def close_db(error):
 
 @app.route('/start_jetstream_listener', methods=['GET'])
 def start_jetstream_listener():
-  """Begin the jetstream for Bluesky."""
-  responses.loop.call_soon_threadsafe(
+  """Begin the jetstream for Bluesky. Then create the CSV for it. """
+  firehose.loop.call_soon_threadsafe(
     asyncio.create_task,
-    responses.jetstream_worker(max_events=50)
+    firehose.jetstream_worker(max_events=50)
   )
-  return render_template('bluesky.html') 
+  posts: list[dict[str, dict[str,str]]] = firehose.get_events()
+  db = get_db()
+  stream_files.get_jetstream_csv(db)
+  return render_template('bluesky.html', posts=posts) 
 
 
 @app.route('/', methods=['GET'])

@@ -1,4 +1,4 @@
-import requests, time, websockets, asyncio, threading, json, os
+import requests, os
 import random
 from utils.classes import compound
 
@@ -189,36 +189,3 @@ def get_pornhub(pornhub_length: int, tags=None, pornstars_arg=None) -> list[list
   # Finally, we are ready to return.
   return [video_search, pornstars]
 
-"""Open a Websocket connection for Blyesky with bluesky firehose"""
-
-loop = asyncio.new_event_loop()
-
-def loop_runner():
-  asyncio.set_event_loop(loop)
-  loop.run_forever()
-
-threading.Thread(target=loop_runner, daemon=True).start()
-
-
-async def jetstream_stream():
-  url = "wss://jetstream2.us-east.bsky.network/subscribe"
-
-  async with websockets.connect(url) as ws:
-    while True:
-      msg = await ws.recv()
-      try:
-        data = json.loads(msg)
-      except json.JSONDecodeError:
-        continue  # skip malformed messages
-
-      yield data
-
-
-async def jetstream_worker(max_events=50):
-  count = 0
-  async for event in jetstream_stream():  
-    print(event)
-    count += 1
-    if count >= max_events:
-      print("Reached max events, stopping worker")
-      break
