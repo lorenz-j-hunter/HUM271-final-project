@@ -205,7 +205,7 @@ def get_x_csv(db):
   return render_template('x.html')
 
 def get_pornhub_csv(db, max_tags=10):
-  """Convert the database file into a csv. 
+  """Convert the database file into a csv.
   The csv represents an undirected and simple graph."""
   # We inserted the video details in the function that precedes this (pornhub())
   # Now, we get them back.
@@ -213,7 +213,7 @@ def get_pornhub_csv(db, max_tags=10):
   f = cur.fetchall()
   # star_ids is different from item_ids because elements are unique.
   # item_ids (videos) contains elements which correspond to which tags they
-  # had. 
+  # had.
   title_ids: list[int] = [row[0] for row in f]
   titles: list[str] = [row[1] for row in f]
   pornstars: list[str] = [row[2] for row in f]

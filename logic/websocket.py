@@ -46,14 +46,16 @@ async def parse(event):
   commit = event.get('commit')
   if not commit:
     ret['status'] = {'message': 'None'}
-    return ret 
+    events.append(ret)
+    return
 
   # The message may not have a record.
   # The record is where all of the valuable info is.  
   record = commit.get('record')
   if not record:
     ret['status'] = {'message': 'None'}
-    return ret
+    events.append(ret)
+    return 
 
   ret['status'] = {'message': 'success'}
   ret['type'] = record.get('$type')

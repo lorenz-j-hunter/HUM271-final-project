@@ -78,14 +78,15 @@ def close_db(error):
 @app.route('/start_jetstream_listener', methods=['GET'])
 def start_jetstream_listener():
   """Begin the jetstream for Bluesky. Then create the CSV for it. """
+  # start stream
   firehose.loop.call_soon_threadsafe(
     asyncio.create_task,
     firehose.jetstream_worker(max_events=50)
   )
   posts: list[dict[str, dict[str,str]]] = firehose.get_events()
-  db = get_db()
-  stream_files.get_jetstream_csv(db)
-  return render_template('bluesky.html', posts=posts) 
+  # get csv.
+  stream_files.get_jetstream_csv(posts)
+  return render_template('bluesky.html') 
 
 
 @app.route('/', methods=['GET'])
