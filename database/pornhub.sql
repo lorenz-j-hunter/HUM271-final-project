@@ -4,7 +4,8 @@ create table first_dim_for_pornhub (
     title text not null,
     pornstar text not null,
     views integer not null,
-    rating text not null
+    rating text not null,
+    video_id text not null
 );
 
 drop table if exists second_dim_for_pornhub;

@@ -2,7 +2,7 @@ import os, asyncio
 from flask import Flask, render_template, g, request, redirect, url_for, jsonify
 from sqlite3 import dbapi2 as sqlite3
 from logic import websocket as firehose 
-from logic import process
+from logic import db_insert
 from logic import csv as files
 from logic import jetstream_csv as stream_files
 
@@ -143,7 +143,7 @@ def bluesky():
       bluesky_length = int(request.args.get('bluesky_length', 'None')) 
     except ValueError:
       return redirect(url_for('static', filename='notfound.html'))
-    process.bsky(db, bluesky_length) 
+    db_insert.bsky(db, bluesky_length) 
     files.get_bluesky_csv(db)      
     return render_template('bluesky.html')
   return render_template('bluesky.html')
@@ -163,7 +163,7 @@ def x():
     except ValueError:
       return redirect(url_for('static', filename='notfound.html'))
     db = get_db()
-    process.x(db, x_length)
+    db_insert.x(db, x_length)
     files.get_x_csv(db)
     return render_template('x.html')
   return render_template('x.html')
@@ -183,7 +183,7 @@ def pornhub():
     except ValueError:
       return redirect(url_for('static', filename='notfound.html'))
     db = get_db()
-    process.pornhub(db, request, pornhub_length)
+    db_insert.pornhub(db, request, pornhub_length)
     files.get_pornhub_csv(db)
     return render_template('pornhub.html')
   return render_template('pornhub.html')
