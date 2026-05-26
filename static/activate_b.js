@@ -12,8 +12,8 @@ document.addEventListener('DOMContentLoaded', () => {
   if (!localStorage.getItem('visibility_b_stream')) {
     localStorage.setItem('visibility_b_stream', hidden);
   }
-  document.querySelector('#csv').style = localStorage.getItem('visibility_b')
-  document.querySelector('#stream-csv').style = localStorage.getItem('visibility_b_stream')
+  document.querySelector('#csv').style = localStorage.getItem('visibility_b');
+  document.querySelector('#stream-csv').style = localStorage.getItem('visibility_b_stream');
 });
 // When the user clicks the button, the link becomes visible and remains so after page reloads.
 function activate() {
@@ -21,17 +21,18 @@ function activate() {
 }
 
 /*Here we define something that lets something activate only once the worker is
-done.*/
+done. It's for the stream*/
 async function wait_for_worker() {
   while (true) {
     const res = await fetch('/worker_status');
     const data = await res.json();
-    if (data.done) break;
-    await new Promise(r => setTimeout(r, 500));
+    if (data.done == 'true') { 
+      localStorage.setItem('visibility_b_stream', visible);
+      document.querySelector('#stream-csv').style = localStorage.getItem('visibility_b_stream');
+      break;
+    }
+    await new Promise(r => setTimeout(r, 50));
   }
-
-  localStorage.setItem('visibility_b_stream', visible);
-  document.querySelector('#stream-csv').style = localStorage.getItem('visibility_b_stream')
 }
 
 wait_for_worker();

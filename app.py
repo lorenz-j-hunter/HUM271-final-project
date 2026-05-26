@@ -86,10 +86,6 @@ def start_jetstream_listener():
   # initialize the database
   init_db('jetstream')
   init_db('worker_done')
-  # by default, the worker is not done. Shared state.
-  db = get_db()
-  db.execute('INSERT INTO worker_done (value) VALUES (?)', ['false'])
-  db.commit()
   # begin worker. 
   firehose.loop.call_soon_threadsafe(
     asyncio.create_task,
@@ -109,6 +105,7 @@ def worker_status():
   cur = db.execute('SELECT value FROM worker_done')
   f = cur.fetchall()
   worker_done = [row[0] for row in f][0]
+  db.close()
   return jsonify({"done": worker_done})
 
 
@@ -121,6 +118,7 @@ def get_stream_csv():
 @app.route('/', methods=['GET'])
 def main():
   init_db()
+  init_db('worker_done')
   return render_template('main.html')
 
 

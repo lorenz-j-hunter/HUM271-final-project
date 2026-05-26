@@ -30,26 +30,29 @@ async def jetstream_worker(db_path, max_events, event_type):
   """Get from the stream."""
   # Here is something that lets you pause until worker is done. 
   count = 0
-  # connect database. 
-  db = sqlite3.connect(db_path, check_same_thread=False)
-  db.row_factory = sqlite3.Row
   # sift through the stream
   async for event in jetstream_stream():  
     ret: dict[str, dict[str,str]] = await parse(event, event_type)
     # Add to the database`
     if ret['status'].get('message', 'None') == 'success':
       if ret['type'].get('message', 'None') == f'app.bsky.feed.{event_type}':
+        db = sqlite3.connect(db_path, check_same_thread=False)
+        db.row_factory = sqlite3.Row
         db.execute('INSERT INTO jetstream (type, text, created_at) VALUES (?, ?, ?)',
                   [ret['type'].get('message'),
                    ret['text'].get('message'),
                    ret['created_at'].get('message')])
         db.commit()
+        db.close()
     count += 1
     # We stop when we have exceeded the desired limit
     if count >= max_events:
       print("Reached max events, stopping worker")
+      db = sqlite3.connect(db_path, check_same_thread=False)
+      db.row_factory = sqlite3.Row
       db.execute('UPDATE worker_done SET value = (?) WHERE value == (?)', ['true', 'false'])
       db.commit()
+      db.close()
       break
 
 async def parse(event, event_type):

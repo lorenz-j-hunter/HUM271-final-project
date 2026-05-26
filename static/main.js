@@ -1,10 +1,12 @@
 hidden = 'content-visibility: hidden;';
 visible = 'content-visibility: visible;';
 /*This resets the settings.
-Learn more in activate_b.js.*/
+Learn more in activate_b.js.
+
+Upon clicking their respective links, they activaet*/
 function reset_bsky() {
-  localStorage.setItem('visibility_b', hidden);
-  localStorage.setItem('visibility_b_stream', hidden);
+  localStorage.removeItem('visibility_b');
+  localStorage.removeItem('visibility_b_stream');
 }
 function reset_x() {
   localStorage.setItem('visibility_x', hidden);
