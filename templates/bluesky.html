@@ -140,14 +140,14 @@
             <a class="nav-link" href="../csvfiles/bluesky.csv" download>Download CSV</a>
           </li>
           <li>
-            <form action="{{url_for('start_jetstream_listener')}}" method="GET" class="nav-link link-body-emphasis" onsubmit="activate_stream()">
+            <form action="{{url_for('start_jetstream_listener')}}" method="GET" class="nav-link link-body-emphasis">
               Select # Responses And Type
               <input type="text" placeholder="# of responses" name="max_events" required pattern="[0-9]{1,5}">
               <input type="text" placeholder="Type of response" name="pattern" required pattern="(post)|(follow)">
               <button type="submit" class="nav-link">Start Stream</button>
             </form>
           </li>
-          <li id="stream-csv" style="content-visibility: hidden;">
+          <li id="stream-csv" style="content-visibility: visible;">
             <form action="{{url_for('get_stream_csv')}}" method="GET">
               <a type="submit" class="nav-link" href="../csvfiles/bsky-jetstream.csv" download>Download Stream CSV</a>
             </form>

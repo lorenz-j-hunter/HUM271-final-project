@@ -1,5 +1,5 @@
 import os, asyncio
-from flask import Flask, render_template, g, request, redirect, url_for
+from flask import Flask, render_template, g, request, redirect, url_for, jsonify
 from sqlite3 import dbapi2 as sqlite3
 from logic import websocket as firehose 
 from logic import process
@@ -25,7 +25,7 @@ def connect_db():
 def init_db(database='all'):
   """Initializes the database."""
   # check to see if arguments are valid.
-  options: list[str] = ['all', 'bluesky', 'x', 'pornhub', 'jetstream']
+  options: list[str] = ['all', 'bluesky', 'x', 'pornhub', 'jetstream', 'worker_done']
   if database not in options:
     raise TypeError('init_db() argument not in list of options.')
   # Selectively initialize the database.
@@ -48,6 +48,9 @@ def init_db(database='all'):
       db.cursor().executescript(f.read()) 
   elif database == 'jetstream':
     with app.open_resource('database/jetstream.sql', mode='r') as f:
+      db.cursor().executescript(f.read()) 
+  elif database == 'worker_done':
+    with app.open_resource('database/worker_done.sql', mode='r') as f:
       db.cursor().executescript(f.read()) 
   db.commit()
 
@@ -77,13 +80,17 @@ def close_db(error):
 
 """Begin endpoints for html pages"""
 
-
 @app.route('/start_jetstream_listener', methods=['GET'])
 def start_jetstream_listener():
   """Begin the jetstream for Bluesky. Then create the CSV for it. """
-  # start stream
+  # initialize the database
   init_db('jetstream')
+  init_db('worker_done')
+  # by default, the worker is not done. Shared state.
   db = get_db()
+  db.execute('INSERT INTO worker_done (value) VALUES (?)', ['false'])
+  db.commit()
+  # begin worker. 
   firehose.loop.call_soon_threadsafe(
     asyncio.create_task,
     firehose.jetstream_worker(
@@ -92,7 +99,18 @@ def start_jetstream_listener():
       event_type=request.args.get('pattern', 'post')
     )
   )
-  return render_template('bluesky.html') 
+  return render_template('bluesky.html')
+
+
+@app.route('/worker_status')
+def worker_status():
+  """Activate a feature only once the jetstream worker is done."""
+  db = get_db()
+  cur = db.execute('SELECT value FROM worker_done')
+  f = cur.fetchall()
+  worker_done = [row[0] for row in f][0]
+  return jsonify({"done": worker_done})
+
 
 @app.route('/get_stream_csv', methods=['GET'])
 def get_stream_csv():

@@ -19,6 +19,19 @@ document.addEventListener('DOMContentLoaded', () => {
 function activate() {
   localStorage.setItem('visibility_b', visible);
 }
-function activate_stream() {
-  localStorage.setItem('visibility_b_stream', visible); 
+
+/*Here we define something that lets something activate only once the worker is
+done.*/
+async function wait_for_worker() {
+  while (true) {
+    const res = await fetch('/worker_status');
+    const data = await res.json();
+    if (data.done) break;
+    await new Promise(r => setTimeout(r, 500));
+  }
+
+  localStorage.setItem('visibility_b_stream', visible);
+  document.querySelector('#stream-csv').style = localStorage.getItem('visibility_b_stream')
 }
+
+wait_for_worker();
