@@ -148,8 +148,15 @@
             </form>
           </li>
           <li id="stream-csv" style="content-visibility: hidden;">
-            <form action="{{url_for('get_stream_csv')}}" method="GET">
-              <a type="submit" class="nav-link" href="../csvfiles/bsky-jetstream.csv" download>Download Stream CSV</a>
+            <form action="{{url_for('get_stream_csv')}}" method="GET" onsubmit="click_link()">
+              <a id="download-link"
+                href="../../csvfiles/bsky-jetstream.csv"
+                class="nav-link link-body-emphasis"
+                download hidden
+              >
+                Download Stream CSV
+              </a>
+              <button class="nav-link" type="submit">Download Stream CSV</button>
             </form>
           </li>
         </ul>

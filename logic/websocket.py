@@ -30,21 +30,32 @@ async def jetstream_worker(db_path, max_events, event_type):
   """Get from the stream."""
   # Here is something that lets you pause until worker is done. 
   count = 0
+  if event_type == 'post':
+    event_type = 'app.bsky.feed.post'
+  elif event_type == 'follow':
+    event_type = 'app.bsky.graph.follow'
   # sift through the stream
   async for event in jetstream_stream():  
-    ret: dict[str, dict[str,str]] = await parse(event, event_type)
+    ret: dict[str, dict[str,str]] = await parse(event)
     # Add to the database`
     if ret['status'].get('message', 'None') == 'success':
-      if ret['type'].get('message', 'None') == f'app.bsky.feed.{event_type}':
+      if ret['type'].get('message', 'None') == event_type:
         db = sqlite3.connect(db_path, check_same_thread=False)
         db.row_factory = sqlite3.Row
-        db.execute('INSERT INTO jetstream (type, text, created_at) VALUES (?, ?, ?)',
-                  [ret['type'].get('message'),
-                   ret['text'].get('message'),
-                   ret['created_at'].get('message')])
-        db.commit()
+        if event_type == 'app.bsky.feed.post':
+          db.execute('INSERT INTO jetstream (type, text, created_at) VALUES (?, ?, ?)',
+                    [ret['type'].get('message'),
+                    ret['text'].get('message'),
+                    ret['created_at'].get('message')])
+          db.commit()
+        elif event_type == 'app.bsky.graph.follow':
+          db.execute('INSERT INTO jetstream (type, text, created_at) VALUES (?, ?, ?)',
+                    [ret['type'].get('message'),
+                    'n/a',
+                    'n/a'])
+          db.commit()
         db.close()
-    count += 1
+        count += 1
     # We stop when we have exceeded the desired limit
     if count >= max_events:
       print("Reached max events, stopping worker")
@@ -55,7 +66,7 @@ async def jetstream_worker(db_path, max_events, event_type):
       db.close()
       break
 
-async def parse(event, event_type):
+async def parse(event):
   """Selectively add to the events list"""
   ret: dict[str, dict[str,str]] = {}
   
@@ -77,7 +88,11 @@ async def parse(event, event_type):
   ret['status'] = {'message': 'success'}
   ret['type'] = {'message': record.get('$type')}
 
-  if ret['type'].get('message', 'None') == f'app.bsky.feed.{event_type}':
+
+  if ret['type'].get('message', 'None') == 'post':
     ret['text'] = {'message': record.get('text')}
     ret['created_at'] = {'message': record.get('createdAt')}
+  elif ret['type'].get('message', 'None') == 'follow':
+    ret['created_at'] = {'message': record.get('createdAt')}
+
   return ret

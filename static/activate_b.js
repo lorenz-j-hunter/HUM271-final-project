@@ -36,3 +36,8 @@ async function wait_for_worker() {
 }
 
 wait_for_worker();
+
+/*Click the hidden download link.*/
+function click_link() {
+  document.querySelector('#download-link').click()
+}
