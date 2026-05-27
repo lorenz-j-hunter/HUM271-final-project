@@ -9,23 +9,26 @@ from logic import jetstream_csv as stream_files
 """Create the app and make db commands."""
 app = Flask(__name__)
 
+
 # Load default config and override config from an environment variable
 app.config.update(dict(
-    DATABASE=os.path.join(app.root_path, 'database/database.db'),
-    SECRET_KEY=os.environ['SECRET_KEY'],
+  DATABASE=os.path.join(app.root_path, 'database/database.db'),
+  SECRET_KEY=os.environ['SECRET_KEY'],
 ))
 app.config.from_envvar('HUM271_SETTINGS', silent=True)
+
 def connect_db():
-    """Connects to the specific database."""
-    rv = sqlite3.connect(app.config['DATABASE'])
-    rv.row_factory = sqlite3.Row
-    return rv
+  """Connects to the specific database."""
+  rv = sqlite3.connect(app.config['DATABASE'])
+  rv.row_factory = sqlite3.Row
+  return rv
 
 
 def init_db(database='all'):
   """Initializes the database."""
   # check to see if arguments are valid.
-  options: list[str] = ['all', 'bluesky', 'x', 'pornhub', 'jetstream', 'worker_done']
+  options: list[str] = ['all', 'bluesky', 'x', 'pornhub', 'jetstream', 'worker_done',
+                        'list_of_stars']
   if database not in options:
     raise TypeError('init_db() argument not in list of options.')
   # Selectively initialize the database.
@@ -51,6 +54,9 @@ def init_db(database='all'):
       db.cursor().executescript(f.read()) 
   elif database == 'worker_done':
     with app.open_resource('database/worker_done.sql', mode='r') as f:
+      db.cursor().executescript(f.read()) 
+  elif database == 'list_of_stars':
+    with app.open_resource('database/list_of_stars.sql', mode='r') as f:
       db.cursor().executescript(f.read()) 
   db.commit()
 
