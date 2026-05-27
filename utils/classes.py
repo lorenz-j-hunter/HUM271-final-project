@@ -1,5 +1,15 @@
 import requests
 
+# This is raised if the user enters data which causes some sort of semantic error.
+#
+# The fieldError is used because regex patterns cannot catch all
+# errors a user might cause.
+class FieldError(Exception):
+  def __init__(self, message, url=None, status=None):
+    super().__init__(message)
+    self.url = url
+    self.status = status
+
 # Pair a response with other things.
 class compound:
   response: requests.Response

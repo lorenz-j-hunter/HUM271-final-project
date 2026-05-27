@@ -41,3 +41,5 @@ wait_for_worker();
 function click_link() {
   document.querySelector('#download-link').click()
 }
+
+

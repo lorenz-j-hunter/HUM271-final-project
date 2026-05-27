@@ -2,6 +2,8 @@ import requests, os
 import random
 from utils.classes import compound
 from utils.utils import tagify
+from flask import current_app
+from sqlite3 import dbapi2 as sqlite3
 
 def get_bluesky(bluesky_length: int) -> dict[str, list[dict[str, str]]]:
   """API responses from Bluesky.
@@ -124,12 +126,23 @@ def get_pornhub(pornhub_length: int, tags=None, pornstars_arg=None) -> list[list
   # We need pornstars in order to make searches on videos. The user can provide them themselves 
   # or have them be automatically generated. 
   if pornstars_arg:
-    # We assume the user has delimited all of their choices with a comma and that all of them
-    # are valid account names.
+    # We assume the user has delimited all of their choices with a comma.
     l: list[str] = pornstars_arg.split(',')
     for star in l:
       star.strip(' ')
-    pornstars = l 
+    pornstars = l
+    # Now we check to see if all are valid pornstars. If not, the program will raise an error.
+    with current_app.app_context():
+      db = sqlite3.connect(current_app.config['DATABASE'], check_same_thread=False)
+      db.row_factory = sqlite3.Row
+      cur = db.execute('SELECT star FROM list_of_stars')
+      f = cur.fetchall()
+      stars = [row[0] for row in f]
+      for star in pornstars:
+        if star not in stars:
+          # Return an error message.
+          return [['None'], ['invalid-pornstar']]
+      db.close()
   else:
     # Here, we only search for pornstars. 
     url = "https://pornhub2.p.rapidapi.com/v2/stars_detailed"
@@ -194,10 +207,13 @@ def get_pornhub(pornhub_length: int, tags=None, pornstars_arg=None) -> list[list
         "x-rapidapi-host": "pornhub2.p.rapidapi.com",
         "Content-Type": "application/json"
       }
-      # NOTE:
-      # This will explicitly tell you whether or not the response gathered 
-      # a video which has the pornstar/tags you queried for. 
-      # Check to see if the response does and, if not, redo the loop.
+      # We have some redundancy here.
+      # We include 'pornstar' with its response in a `compound`, 
+      # but the return value also features `pornstars`.
+      # It used to be redundant and worthy of deletion.
+      # The `pornstars` as a return value only serves to send an error
+      # message if one does arise.
+      # The pairing that the program uses is in `comment`.
       response = requests.get(url, headers=headers, params=querystring)
       insertion: compound = compound({
         'response': response,

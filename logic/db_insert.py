@@ -1,7 +1,8 @@
 from logic.make_request import get_bluesky, get_pornhub, get_x
 import requests, os
 from utils.utils import get_age
-from utils.classes import compound
+from utils.classes import compound, FieldError
+
 
 def bsky(db, bluesky_length=10):
   """Add response data to the Bluesky database table."""
@@ -165,7 +166,7 @@ def x(db, x_length=10):
         db.commit()
     item_id += 1
 
-def pornhub(db, request, pornhub_length=10):
+def pornhub(db, request, pornhub_length=10) -> None | FieldError:
   """Add response data to the Pornhub database table."""
   # Process these inputs from user. Used to get the package. 
   pornstars_arg = request.args.get('pornstars')
@@ -180,7 +181,10 @@ def pornhub(db, request, pornhub_length=10):
     pornstars_arg=pornstars_arg,
     tags=tags_arg
   )
-  video_search: list[compound] = package[0] 
+  video_search: list[compound] = package[0]
+  pornstars = package[1]
+  if pornstars[0] == 'invalid-pornstar':
+    return FieldError('Invalid request field.') 
   url = "https://pornhub2.p.rapidapi.com/v2/video_by_id"
   # These are our return values. Each represent a column of the CSV we want to create with this
   # function.
