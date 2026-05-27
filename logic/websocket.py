@@ -28,8 +28,9 @@ async def jetstream_stream():
 
 async def jetstream_worker(db_path, max_events, event_type):
   """Get from the stream."""
-  # Here is something that lets you pause until worker is done. 
+  # Here is something that lets you pause until worker is done.
   count = 0
+  # Any event that comes through must match the event type.
   if event_type == 'post':
     event_type = 'app.bsky.feed.post'
   elif event_type == 'follow':
@@ -49,6 +50,7 @@ async def jetstream_worker(db_path, max_events, event_type):
         db.commit()
         db.close()
         count += 1
+      # Add to the database.
       elif ret['type'].get('data', 'None') == 'app.bsky.graph.follow' == event_type:
         db = sqlite3.connect(db_path, check_same_thread=False)
         db.row_factory = sqlite3.Row
@@ -65,6 +67,7 @@ async def jetstream_worker(db_path, max_events, event_type):
       print("Reached max events, stopping worker")
       db = sqlite3.connect(db_path, check_same_thread=False)
       db.row_factory = sqlite3.Row
+      # Tell the system that the worker is done. 
       db.execute('UPDATE worker_done SET value = (?) WHERE value == (?)', ['true', 'false'])
       db.commit()
       db.close()
@@ -92,7 +95,7 @@ async def parse(event):
   ret['status'] = {'data': 'success'}
   ret['type'] = {'data': record.get('$type')}
 
-
+  # We recognize two options in the whole: post and follow.
   if ret['type'].get('data', 'None') == 'app.bsky.feed.post':
     ret['text'] = {'data': record.get('text')}
     ret['created_at'] = {'data': record.get('createdAt')}
