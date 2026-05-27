@@ -11,3 +11,13 @@ document.addEventListener('DOMContentLoaded', () => {
 function activate() {
   localStorage.setItem('visibility_p', 'content-visibility: visible;');
 }
+
+/*We define something here which responds if the user raises a FieldError.*/
+const params = new URLSearchParams(window.location.search);
+const code = params.get('code');
+if (code == 1) {
+  //... Then tell the user that they entered something wrong.
+  document.querySelector('#error-message').hidden = "false";
+} else {
+  document.querySelector('#error-message').hidden = "true";
+}

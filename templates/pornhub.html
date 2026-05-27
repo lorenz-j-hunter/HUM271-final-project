@@ -130,11 +130,13 @@
             </form>
           </li>
           <li>
+            {% if code %}
             <span id="error-message"
-              hidden="true" class="nav-link link-body-emphasis"
+               class="nav-link link-body-emphasis"
             >
               Invalid star.
             </span>
+            {% endif %}
             <form action="{{url_for('pornhub')}}" method="GET" class="nav-link link-body-emphasis" onsubmit="activate()">
               Select your Type of Responses
               <input type="text" name="pornhub_length" placeholder="Number of Responses" pattern="[0-9]{1,2}" required>

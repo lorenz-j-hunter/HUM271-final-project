@@ -192,9 +192,9 @@ def pornhub():
       return redirect(url_for('static', filename='notfound.html'))
     db = get_db()
     field_error = db_insert.pornhub(db, request, pornhub_length)
-    # if there is an error, just redirect control back with a cookie.
+    # if there is an error, just redirect control back 
     if field_error:
-      return redirect(url_for('static', filename='notfound.html')) 
+      return render_template('pornhub.html', code=True) 
     files.get_pornhub_csv(db)
     return render_template('pornhub.html')
   return render_template('pornhub.html')
