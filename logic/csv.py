@@ -1,5 +1,5 @@
 from flask import render_template
-import csv
+import csv, os
 """Functions for returning the csv."""
 
 def get_bluesky_csv(db):
@@ -260,7 +260,7 @@ def get_pornhub_csv(db, max_tags=10):
             consolidated[max_tags*(title_id-1) + counter]['tags'] = 'None'
           counter += 1
   # Now, we open a flat file and insert to it.
-  with open('../csvfiles/pornhub.csv', 'w', newline='\n') as csvfile:
+  with open(os.path.relpath('../csvfiles/pornhub.csv'), 'w', newline='\n') as csvfile:
     field_names = ['title', 'title_id', 'views', 'rating', 'pornstar', 'tags', 'video_id']
     writer = csv.DictWriter(csvfile, fieldnames=field_names)
     writer.writeheader()

@@ -1,10 +1,11 @@
 from time import strftime, gmtime
 
-def encase(target: str) -> str:
+def encase(target: str, char='#') -> str:
   """Encase the target with the character.
-  Return TypeError if the character is not a string of
-  length 1."""
-  return '#' + target + '#' 
+  """
+  if char == '[]':
+    return '[' + target + ']'
+  return char + target + char 
 
 def extract(target: str) -> dict[str,str]:
   """Return a dict of substrings which are encased
@@ -33,3 +34,16 @@ def get_age(created_at: str) -> int:
   ret += 12 - date[1]  
   ret += 12 * (cur_date[0] - (date[0] + 1))
   return ret
+
+def tagify(tags: list[str]) -> str:
+  """Return a request-friendly format of a list."""
+  # Format should be "[\"thing1\", \"thing2"]"
+  ret: str = ''
+  for tag in tags:
+    if tag is not tags[len(tags)-1]: # zero-index
+      ret = ret + encase(tag, '\\\"') + ', '
+    else:
+      ret = ret + encase(tag, '\\\"')
+  ret = encase(ret, '[]')
+  ret = encase(ret, '"')
+  return ret 

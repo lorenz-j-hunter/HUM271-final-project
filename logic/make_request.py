@@ -1,6 +1,7 @@
 import requests, os
 import random
 from utils.classes import compound
+from utils.utils import tagify
 
 def get_bluesky(bluesky_length: int) -> dict[str, list[dict[str, str]]]:
   """API responses from Bluesky.
@@ -151,15 +152,15 @@ def get_pornhub(pornhub_length: int, tags=None, pornstars_arg=None) -> list[list
     if tags:
       # We assume the user has delimited all of their choices with a comma and that all of them
       # are valid account names.
-      l: list[str] = tags.split(',')
-      for tag in l:
+      pre: list[str] = tags.split(',')
+      for tag in pre:
         tag.strip(' ')
         tag.lower()
-      pornstar = pornstars[random.randrange(0, len(pornstars))],
-      querystring = {"search":tags[random.randrange(0, len(tags))],
+      pornstar = pornstars[random.randrange(0, len(pornstars))]
+      querystring = {"tags":tagify(pre),
                     "page":"1",
                     "period":"weekly",
-                    "stars":pornstar,
+                    "stars":tagify([pornstar]),
                     "ordering":"newest",
                     "thumbsize":"small"}
       headers = {
@@ -172,17 +173,20 @@ def get_pornhub(pornhub_length: int, tags=None, pornstars_arg=None) -> list[list
       # is handled here.
       if response.json().get('status') == 'error':
         continue
+      # The responses do not always include the star in question. 
+      if pornstar not in response.json().get('pornstars'):
+        raise TypeError('Response did not include star in question')
       insertion: compound = compound({
         'response': response,
         'comment': str(pornstar)
       })
       video_search.append(insertion)
     else :
-      pornstar = pornstars[random.randrange(0, len(pornstars))],
-      querystring = {"search":"cumshot",
+      pornstar: str = pornstars[random.randrange(0, len(pornstars))]
+      querystring = {"tags":tagify(['cumshot']),
                     "page":"1",
                     "period":"weekly",
-                    "stars":pornstar,
+                    "stars":tagify([pornstar]),
                     "ordering":"newest",
                     "thumbsize":"small"}
       headers = {
@@ -190,6 +194,10 @@ def get_pornhub(pornhub_length: int, tags=None, pornstars_arg=None) -> list[list
         "x-rapidapi-host": "pornhub2.p.rapidapi.com",
         "Content-Type": "application/json"
       }
+      # NOTE:
+      # This will explicitly tell you whether or not the response gathered 
+      # a video which has the pornstar/tags you queried for. 
+      # Check to see if the response does and, if not, redo the loop.
       response = requests.get(url, headers=headers, params=querystring)
       insertion: compound = compound({
         'response': response,
