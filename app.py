@@ -86,6 +86,8 @@ def start_jetstream_listener():
   # initialize the database
   init_db('jetstream')
   init_db('worker_done')
+  print(f'max_events={request.args.get('max_events', 'None')}')
+  print(f'pattern={request.args.get('pattern', 'None')}')
   # begin worker. 
   firehose.loop.call_soon_threadsafe(
     asyncio.create_task,
