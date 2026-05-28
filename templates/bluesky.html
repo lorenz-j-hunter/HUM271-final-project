@@ -95,6 +95,7 @@
     <script src="{{ url_for('static', filename='activate_b.js')}}"></script>
   </head>
   <body>
+    <title hidden>This is the grid image.</title>
     <svg xmlns="http://www.w3.org/2000/svg" class="d-none">
       <symbol id="grid" viewBox="0 0 16 16">
         <path
@@ -148,6 +149,12 @@
             </form>
           </li>
           <li id="stream-csv" style="content-visibility: hidden;">
+            <span class="bg-success"
+            id="success"
+            style="content-visibility: hidden;"
+            >
+              This is a success message
+            </span>
             <form action="{{url_for('get_stream_csv')}}" method="GET" onsubmit="click_link()">
               <a id="download-link"
                 href="../../csvfiles/bsky-jetstream.csv"

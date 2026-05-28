@@ -198,3 +198,8 @@ def pornhub():
     files.get_pornhub_csv(db)
     return render_template('pornhub.html')
   return render_template('pornhub.html')
+
+@app.route('/docs', methods=['POST'])
+def docs():
+  """Manifesto and user manual."""
+  return render_template('docs.html')

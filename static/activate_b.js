@@ -29,9 +29,10 @@ async function wait_for_worker() {
     if (data.done == 'true') { 
       localStorage.setItem('visibility_b_stream', visible);
       document.querySelector('#stream-csv').style = localStorage.getItem('visibility_b_stream');
+      document.querySelector('#success').style = visible;
       break;
     }
-    await new Promise(r => setTimeout(r, 50));
+    await new Promise(r => setTimeout(r, 200));
   }
 }
 

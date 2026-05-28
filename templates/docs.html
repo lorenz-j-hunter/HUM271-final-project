@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
   <head>
-    <title>HUM271 Project</title>
+    <title>Docs</title>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="description" content="" />
@@ -93,7 +93,6 @@
         display: block !important;
       }
     </style>
-    <script src="{{ url_for('static', filename='main.js') }}"></script>
   </head>
   <header
     class="d-flex flex-wrap justify-content-center py-3 mb-4 border-bottom"
@@ -109,43 +108,16 @@
     </a>
     <ul class="nav nav-pills">
       <li class="nav-item">
-        <form action="{{url_for('docs')}}" method="POST">
-          <button class="nav-link active">Docs</button>
+        <form action="{{url_for('main')}}" method="GET">
+          <button class="nav-link active">Main</button>
         </form>
       </li>
-      <li class="nav-item">
-        <form action="{{url_for('bluesky')}}" method="POST" onsubmit="reset_bsky()">
-          <button type="submit" class="btn btn-link">Bluesky</button>
-        </form>
-      </li>
-      <li class="nav-item" hidden>
-        <form action="{{url_for('x')}}" method="POST" onsubmit="reset_x()">
-          <button type="submit" class="btn btn-link">X</button>
-        </form>
-      </li>
-      <li class="nav-item" hidden>
-        <form action="{{url_for('pornhub')}}" method="POST" onsubmit="reset_pornhub()">
-          <button type="submit" class="btn btn-link">Pornhub</button>
-        </form>
-      </li>
-      <li class="nav-item"><a href="#" class="nav-link">About</a></li>
     </ul>
   </header>
   <body>
     <main>
-      <h1 class="visually-hidden">Main Hero</h1>
-      <div class="px-4 py-5 my-5 text-center">
-        <h1 class="display-5 fw-bold primary-text-emphasis">Respite</h1>
-        <div class="col-lg-6 mx-auto">
-          <p class="lead mb-4">
-            Get mass-scale data at the click of a button. 
-          </p>
-          <div class="d-grid gap-2 d-sm-flex justify-content-sm-center">
-            <button type="button" class="btn btn-primary btn-lg px-4 gap-3">
-              See more
-            </button>
-          </div>
-        </div>
+      <div class="text-center">
+        <p>We came up with this in order to perform network analysis on human population.</p>
       </div>
     </main>
     <div class="container">

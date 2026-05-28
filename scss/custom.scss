@@ -8,17 +8,29 @@ $component-active-bg: #e85151;
 
 
 // Default variable overrides
-$body-bg: #3b3535;
-$body-tertiary-bg: tint-color($body-bg, 40%);
-$body-color: #c29d9d;
-$body-emphasis-color: tint-color(#e85151, 40%);
-$body-secondary-color: tint-color($body-color, 40%);
-$primary: #e85151;
-$secondary: #4f1713;
-$success: #fff;
-$danger: #000;
-$warning: #fafa48;
-$info: #5c5c1c;
+$light: #aae9e3;
+$white: #fff;
+$dark: #191361;
+$primary: #262121;
+$secondary: #e14056;
+$info: #70378f;
+$success: #599227;
+$warning: #fdba59;
+$danger: #e61963;
+
+$body-bg: $light;
+$body-secondary-bg: shade-color($body-bg, 30%);
+$body-tertiary-bg: shade-color($body-bg, 60%);
+$body-color: $dark;
+$body-emphasis-color: $info;
+$body-secondary-color: tint-color($secondary, 40%);
+$body-tertiary-color: tint-color($secondary, 80%);
+
+.bg-success {
+  --bs-bg-opacity: 1;
+  background-color: rgba(var(--bs-success-rgb), var(--bs-bg-opacity)) !important;
+  color: rgba(var($primary), var(--bs-bg-opacity)) !important;
+}
 
 $theme-colors: ( 
   "body-bg": $body-bg,
