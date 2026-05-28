@@ -172,7 +172,7 @@ def get_pornhub(pornhub_length: int, tags=None, pornstars_arg=None) -> list[list
       pornstar = pornstars[random.randrange(0, len(pornstars))]
       querystring = {"tags":tagify(pre),
                     "page":"1",
-                    "period":"weekly",
+                    "period":"alltime",
                     "stars":tagify([pornstar]),
                     "ordering":"newest",
                     "thumbsize":"small"}
@@ -194,32 +194,34 @@ def get_pornhub(pornhub_length: int, tags=None, pornstars_arg=None) -> list[list
         'comment': str(pornstar)
       })
       video_search.append(insertion)
-    else :
-      pornstar: str = pornstars[random.randrange(0, len(pornstars))]
-      querystring = {"tags":tagify(['cumshot']),
-                    "page":"1",
-                    "period":"weekly",
-                    "stars":tagify([pornstar]),
-                    "ordering":"newest",
-                    "thumbsize":"small"}
-      headers = {
-        "x-rapidapi-key": os.environ['PORNHUB_KEY'],
-        "x-rapidapi-host": "pornhub2.p.rapidapi.com",
-        "Content-Type": "application/json"
-      }
-      # We have some redundancy here.
-      # We include 'pornstar' with its response in a `compound`, 
-      # but the return value also features `pornstars`.
-      # It used to be redundant and worthy of deletion.
-      # The `pornstars` as a return value only serves to send an error
-      # message if one does arise.
-      # The pairing that the program uses is in `comment`.
-      response = requests.get(url, headers=headers, params=querystring)
-      insertion: compound = compound({
-        'response': response,
-        'comment': str(pornstar)
-      })
-      video_search.append(insertion)
+    else: # if not tags
+      page = 1
+      while page <= 10: 
+        pornstar: str = pornstars[random.randrange(0, len(pornstars))]
+        querystring = {
+                      "page":str(page),
+                      "period":"alltime",
+                      "ordering":"newest",
+                      "stars":tagify([pornstar])
+                      }
+        headers = {
+          "x-rapidapi-key": os.environ['PORNHUB_KEY'],
+          "x-rapidapi-host": "pornhub2.p.rapidapi.com",
+          "Content-Type": "application/json"
+        }
+        # We have some redundancy here.
+        # We include 'pornstar' with its response in a `compound`, 
+        # but the return value also features `pornstars`.
+        # It used to be redundant and worthy of deletion.
+        # The `pornstars` as a return value only serves to send an error
+        # message if one does arise.
+        # The pairing that the program uses is in `comment`.
+        response = requests.get(url, headers=headers, params=querystring)
+        insertion: compound = compound({
+          'response': response,
+          'comment': str(pornstar)
+        })
+        video_search.append(insertion)
   # Finally, we are ready to return.
   return [video_search, pornstars]
 
