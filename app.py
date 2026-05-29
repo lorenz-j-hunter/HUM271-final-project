@@ -7,7 +7,7 @@ from logic import csv as files
 from logic import jetstream_csv as stream_files
 
 """Create the app and make db commands."""
-app = Flask(__name__)
+app = Flask(__name__, static_folder='static')
 
 
 # Load default config and override config from an environment variable
@@ -203,3 +203,8 @@ def pornhub():
 def docs():
   """Manifesto and user manual."""
   return render_template('docs.html')
+
+@app.route('/see_more', methods=['GET'])
+def see_more():
+  """What the user sees when they click 'see more'."""
+  return render_template('see_more.html')

@@ -10310,6 +10310,26 @@ textarea.form-control-lg {
   background-color: rgba(var(--bs-success-rgb), var(--bs-bg-opacity)) !important;
   color: rgba(var(#262121), var(--bs-bg-opacity)) !important; }
 
+.parallax {
+  width: 100%;
+  min-height: 500px;
+  background-attachment: fixed;
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: cover; }
+
+.parallax.parallax-bg {
+  background-image: url("/static/images/background-layer.png");
+  opacity: 0.7; }
+
+.parallax.parallax-mid {
+  background-image: url("/static/images/midground-layer.png");
+  opacity: 0.2; }
+
+.parallax.parallax-fg {
+  background-image: url("/static/images/foreground-layer.png");
+  opacity: 0.1; }
+
 .nav {
   --bs-nav-link-padding-x: 1rem;
   --bs-nav-link-padding-y: 0.5rem;
