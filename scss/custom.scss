@@ -18,7 +18,7 @@ $success: #599227;
 $warning: #fdba59;
 $danger: #e61963;
 
-$body-bg: $light;
+$body-bg: black;
 $body-secondary-bg: shade-color($body-bg, 30%);
 $body-tertiary-bg: shade-color($body-bg, 60%);
 $body-color: $dark;
@@ -34,32 +34,35 @@ $body-tertiary-color: tint-color($secondary, 80%);
 
 //Parallax scrolling
 
-.parallax {
+.layer {
   width: 100%;
-  min-height: 500px;
-  background-attachment: fixed;
+  min-height: 1000px;
   background-position: center;
   background-repeat: no-repeat;
   background-size: cover;
+  background-attachment: fixed;
 }
 
 
-.parallax.parallax-bg {
+
+#parallax-bg {
+  @extend .layer;
   background-image: url("/static/images/background-layer.png");
+  opacity: 0.5;
+}
+
+
+#parallax-mid {
+  @extend .layer;
+  background-image: url("/static/images/midground-layer.png");
   opacity: 0.7;
 }
 
 
-
-.parallax.parallax-mid {
-  background-image: url("/static/images/midground-layer.png");
-  opacity: 0.2;
-}
-
-
-.parallax.parallax-fg {
+#parallax-fg {
+  @extend .layer;
   background-image: url("/static/images/foreground-layer.png");
-  opacity: 0.1;
+  opacity: 1;
 }
 
 //end parallax scrolling
