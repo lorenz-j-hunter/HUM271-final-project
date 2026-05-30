@@ -92,7 +92,7 @@
         display: block !important;
       }
     </style>
-    <script src="{{ url_for('static', filename='activate_b.js')}}"></script>
+    <script src="{{url_for('static', filename='activate_b_1.js')}}"></script>
   </head>
   <body>
     <title hidden>This is the grid image.</title>
@@ -130,22 +130,23 @@
               <button type="submit" class="nav-link">Main</button>
             </form>
           </li>
-          <li>
-            <form action="{{url_for('bluesky')}}" method="GET" class="nav-link link-body-emphasis" onsubmit="activate()">
-              Select Number of Responses 
-              <input type="text" name="bluesky_length" pattern="[0-9]{1,2}" required>
-              <button type="submit" class="nav-link">Submit</button>
-            </form>
-          </li>
-          <li id="csv" style="content-visibility: hidden;">
-            <a class="nav-link" href="../csvfiles/bluesky.csv" download>Download CSV</a>
-          </li>
-          <li>
-            <form action="{{url_for('start_jetstream_listener')}}" method="GET" class="nav-link link-body-emphasis">
-              Select # Responses And Type
-              <input type="text" placeholder="# of responses" name="max_events" required pattern="[0-9]{1,5}">
-              <input type="text" placeholder="Type of response" name="pattern" required pattern="(post)|(follow)">
-              <button type="submit" class="nav-link">Start Stream</button>
+          <!--Download Stream CSV-->
+          <li id="stream-csv" style="content-visibility: hidden;">
+            <span class="bg-success"
+            id="success"
+            style="content-visibility: hidden;"
+            >
+              This is a success message
+            </span>
+            <form action="{{url_for('get_stream_csv')}}" method="GET" onsubmit="click_link()">
+              <a id="download-link"
+                href="../../csvfiles/bsky-jetstream.csv"
+                class="nav-link link-body-emphasis"
+                download hidden
+              >
+                Download Stream CSV
+              </a>
+              <button class="nav-link" type="submit">Download Stream CSV</button>
             </form>
           </li>
         </ul>
