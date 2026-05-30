@@ -1,21 +1,11 @@
+endpoint = 1000
+
 const layers = [
   {
-    el: document.getElementById("parallax-bg"),
-    start: 100,
-    end: 600,
+    el: document.querySelector(".parallax-bg"),
+    start: 0,
+    end: endpoint,
     speed: 80   // slowest
-  },
-  {
-    el: document.getElementById("parallax-mid"),
-    start: 150,
-    end: 650,
-    speed: 140  // medium
-  },
-  {
-    el: document.getElementById("parallax-fg"),
-    start: 200,
-    end: 700,
-    speed: 220  // fastest
   }
 ];
 
@@ -35,6 +25,7 @@ window.addEventListener("scroll", () => {
     if (y > end) {
       // FIXED MODE (after range)
       el.style.backgroundAttachment = "fixed";
+      el.style.marginTop = `${end}px`;
       el.style.backgroundPositionY = "center";
       continue;
     }

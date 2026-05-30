@@ -96,149 +96,163 @@
     <script src="{{ url_for('static', filename='main.js') }}"></script>
 
   </head>
-  <header
-    class="d-flex flex-wrap justify-content-center py-3 mb-4 border-bottom"
-  >
-    <a
-      href="/"
-      class="d-flex align-items-center mb-3 mb-md-0 me-md-auto link-body-emphasis text-decoration-none"
-    >
-      <svg class="bi me-2" width="40" height="32" aria-hidden="true">
-        <use xlink:href="#bootstrap"></use>
-      </svg>
-      <span class="fs-4">HUM271 Project</span>
-    </a>
-    <ul class="nav nav-pills">
-      <li class="nav-item">
-        <form action="{{url_for('docs')}}" method="POST">
-          <button class="nav-link active">Docs</button>
-        </form>
-      </li>
-      <li class="nav-item">
-        <form action="{{url_for('bluesky')}}" method="POST" onsubmit="reset_bsky()">
-          <button type="submit" class="btn btn-link">Bluesky</button>
-        </form>
-      </li>
-      <li class="nav-item" hidden>
-        <form action="{{url_for('x')}}" method="POST" onsubmit="reset_x()">
-          <button type="submit" class="btn btn-link">X</button>
-        </form>
-      </li>
-      <li class="nav-item" hidden>
-        <form action="{{url_for('pornhub')}}" method="POST" onsubmit="reset_pornhub()">
-          <button type="submit" class="btn btn-link">Pornhub</button>
-        </form>
-      </li>
-      <li class="nav-item"><a href="#" class="nav-link">About</a></li>
-    </ul>
-  </header>
   <body>
-    <main>
-      <h1 class="visually-hidden">Main Hero</h1>
-      <div id="parallax-bg" data-speed="1">
-
-        <div id="parallax-mid" data-speed="0.5">
-
-          <div id="parallax-fg" data-speed="0.2">
-
-            <section class="px-4 py-5 my-5 text-center content">
-              <h1 class="display-5 fw-bold primary-text-emphasis">Respite</h1>
-              <div class="col-lg-6 mx-auto">
-                <p class="lead mb-4">
-                  Get lots of data at the click of a button. 
-                </p>
-                <div class="d-grid gap-2 d-sm-flex justify-content-sm-center">
-                  <form action="{{url_for('see_more')}}" method="GET">
-                    <button type="button" class="btn btn-primary btn-lg px-4 gap-3">
-                      See more
-                    </button>
-                  </form> 
-                </div>
-              </div>
-            </section>
-
-          </div>
-
-        </div>
-
-      </div>
-
-    </main>
-    <div class="container">
-      <footer
-        class="row row-cols-1 row-cols-sm-2 row-cols-md-5 py-5 my-5 border-top"
+    <!--Background layer-->
+    <div class="parallax-bg" data-speed="0.2">
+      <header
+        class="d-flex flex-wrap justify-content-center py-3 mb-4 border-bottom"
       >
-        <div class="col mb-3">
-          <p class="text-body-secondary">&copy; 2025</p>
-        </div>
-        <div class="col mb-3"></div>
-        <div class="col mb-3">
-          <h5>Section</h5>
-          <ul class="nav flex-column">
-            <li class="nav-item mb-2">
-              <a href="#" class="nav-link p-0 text-body-secondary">Home</a>
-            </li>
-            <li class="nav-item mb-2">
-              <a href="#" class="nav-link p-0 text-body-secondary">Features</a>
-            </li>
-            <li class="nav-item mb-2">
-              <a href="#" class="nav-link p-0 text-body-secondary">Pricing</a>
-            </li>
-            <li class="nav-item mb-2">
-              <a href="#" class="nav-link p-0 text-body-secondary">FAQs</a>
-            </li>
-            <li class="nav-item mb-2">
-              <a href="#" class="nav-link p-0 text-body-secondary">About</a>
-            </li>
-          </ul>
-        </div>
-        <div class="col mb-3">
-          <h5>Section</h5>
-          <ul class="nav flex-column">
-            <li class="nav-item mb-2">
-              <a href="#" class="nav-link p-0 text-body-secondary">Home</a>
-            </li>
-            <li class="nav-item mb-2">
-              <a href="#" class="nav-link p-0 text-body-secondary">Features</a>
-            </li>
-            <li class="nav-item mb-2">
-              <a href="#" class="nav-link p-0 text-body-secondary">Pricing</a>
-            </li>
-            <li class="nav-item mb-2">
-              <a href="#" class="nav-link p-0 text-body-secondary">FAQs</a>
-            </li>
-            <li class="nav-item mb-2">
-              <a href="#" class="nav-link p-0 text-body-secondary">About</a>
-            </li>
-          </ul>
-        </div>
-        <div class="col mb-3">
-          <h5>Section</h5>
-          <ul class="nav flex-column">
-            <li class="nav-item mb-2">
-              <a href="#" class="nav-link p-0 text-body-secondary">Home</a>
-            </li>
-            <li class="nav-item mb-2">
-              <a href="#" class="nav-link p-0 text-body-secondary">Features</a>
-            </li>
-            <li class="nav-item mb-2">
-              <a href="#" class="nav-link p-0 text-body-secondary">Pricing</a>
-            </li>
-            <li class="nav-item mb-2">
-              <a href="#" class="nav-link p-0 text-body-secondary">FAQs</a>
-            </li>
-            <li class="nav-item mb-2">
-              <a href="#" class="nav-link p-0 text-body-secondary">About</a>
-            </li>
-          </ul>
-        </div>
-      </footer>
+        <a
+          href="/"
+          class="d-flex align-items-center mb-3 mb-md-0 me-md-auto link-body-emphasis text-decoration-none"
+        >
+          <svg class="bi me-2" width="40" height="32" aria-hidden="true">
+            <use xlink:href="#bootstrap"></use>
+          </svg>
+          <span class="fs-4">HUM271 Project</span>
+        </a>
+        <ul class="nav nav-pills">
+          <li class="nav-item">
+            <form action="{{url_for('docs')}}" method="POST">
+              <button class="nav-link active">Docs</button>
+            </form>
+          </li>
+          <li class="nav-item">
+            <form action="{{url_for('bluesky')}}" method="POST" onsubmit="reset_bsky()">
+              <button type="submit" class="btn btn-link">Bluesky</button>
+            </form>
+          </li>
+          <li class="nav-item" hidden>
+            <form action="{{url_for('x')}}" method="POST" onsubmit="reset_x()">
+              <button type="submit" class="btn btn-link">X</button>
+            </form>
+          </li>
+          <li class="nav-item" hidden>
+            <form action="{{url_for('pornhub')}}" method="POST" onsubmit="reset_pornhub()">
+              <button type="submit" class="btn btn-link">Pornhub</button>
+            </form>
+          </li>
+          <li class="nav-item"><a href="#" class="nav-link">About</a></li>
+        </ul>
+      </header>
+      <!--Header-->
+      <!--Main Hero-->
+      <main>
+        <h1 class="visually-hidden">Main Hero</h1>
+        <section class="px-4 py-5 my-5 text-center content">
+          <h1 class="display-5 fw-bold primary-text-emphasis">Respite</h1>
+          <div class="col-lg-6 mx-auto">
+            <p class="lead mb-4">
+              Get lots of data at the click of a button. 
+            </p>
+            <div class="d-grid gap-2 d-sm-flex justify-content-sm-center">
+              <form action="{{url_for('see_more')}}" method="GET">
+                <button type="button" class="btn btn-primary btn-lg px-4 gap-3">
+                  See more
+                </button>
+              </form>
+            </div>
+          </div>
+          <!--Main Hero-->
+          <!--Second Hero-->
+          <br>
+          <div class="container">
+            <aside class="row row-cols-1 row-cols-sm-2 row-cols-md-5 py-5 my-5 border-top border-bottom">
+              <h2>Powering a future of data analysis.</h2>
+              <ul class="nav flex-column">
+                <li class="nav-item mb-4">
+                  <p>This is our vision.</p>
+                </li>
+                <li class="nav-item mb-4">
+                  <p>This is our other vision.</p>
+                </li>
+              </ul>
+              <div class="py-5">
+                <p class="text-body-secondary">Respite Ltd.</p>
+              </div>
+            </aside>
+          </div> 
+        </section>
+        <!--Second Hero-->
+      </main>
+      <!--Footer-->
+      <div class="container">
+        <footer
+          class="row row-cols-1 row-cols-sm-2 row-cols-md-5 py-5 my-5 border-top"
+        >
+          <div class="col mb-3">
+            <p class="text-body-secondary">&copy; 2026</p>
+          </div>
+          <div class="col mb-3"></div>
+          <div class="col mb-3">
+            <h5>Section</h5>
+            <ul class="nav flex-column">
+              <li class="nav-item mb-2">
+                <a href="#" class="nav-link p-0 text-body-secondary">Home</a>
+              </li>
+              <li class="nav-item mb-2">
+                <a href="#" class="nav-link p-0 text-body-secondary">Features</a>
+              </li>
+              <li class="nav-item mb-2">
+                <a href="#" class="nav-link p-0 text-body-secondary">Pricing</a>
+              </li>
+              <li class="nav-item mb-2">
+                <a href="#" class="nav-link p-0 text-body-secondary">FAQs</a>
+              </li>
+              <li class="nav-item mb-2">
+                <a href="#" class="nav-link p-0 text-body-secondary">About</a>
+              </li>
+            </ul>
+          </div>
+          <div class="col mb-3">
+            <h5>Section</h5>
+            <ul class="nav flex-column">
+              <li class="nav-item mb-2">
+                <a href="#" class="nav-link p-0 text-body-secondary">Home</a>
+              </li>
+              <li class="nav-item mb-2">
+                <a href="#" class="nav-link p-0 text-body-secondary">Features</a>
+              </li>
+              <li class="nav-item mb-2">
+                <a href="#" class="nav-link p-0 text-body-secondary">Pricing</a>
+              </li>
+              <li class="nav-item mb-2">
+                <a href="#" class="nav-link p-0 text-body-secondary">FAQs</a>
+              </li>
+              <li class="nav-item mb-2">
+                <a href="#" class="nav-link p-0 text-body-secondary">About</a>
+              </li>
+            </ul>
+          </div>
+          <div class="col mb-3">
+            <h5>Section</h5>
+            <ul class="nav flex-column">
+              <li class="nav-item mb-2">
+                <a href="#" class="nav-link p-0 text-body-secondary">Home</a>
+              </li>
+              <li class="nav-item mb-2">
+                <a href="#" class="nav-link p-0 text-body-secondary">Features</a>
+              </li>
+              <li class="nav-item mb-2">
+                <a href="#" class="nav-link p-0 text-body-secondary">Pricing</a>
+              </li>
+              <li class="nav-item mb-2">
+                <a href="#" class="nav-link p-0 text-body-secondary">FAQs</a>
+              </li>
+              <li class="nav-item mb-2">
+                <a href="#" class="nav-link p-0 text-body-secondary">About</a>
+              </li>
+            </ul>
+          </div>
+        </footer>
+      </div>
+      <!--Footer-->
     </div>
+    <!--Background layer-->
     <script
       src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js"
       class="astro-vvvwv3sm"
     ></script>
     <script src="{{ url_for('static', filename='parallax.js') }}"></script>
   </body>
-  
 </html>

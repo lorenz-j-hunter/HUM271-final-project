@@ -1,7 +1,7 @@
 // Required
 @import "../node_modules/bootstrap/scss/functions";
 
-$component-active-bg: #e85151;
+$component-active-bg: #70378f; //info
 
 @import "../node_modules/bootstrap/scss/bootstrap.scss";
 @import "../node_modules/bootstrap/scss/variables";
@@ -12,17 +12,19 @@ $light: #aae9e3;
 $white: #fff;
 $dark: #191361;
 $primary: #262121;
-$secondary: #e14056;
+$secondary: #bdbfbe;
 $info: #70378f;
-$success: #599227;
+$success: #fff;
 $warning: #fdba59;
 $danger: #e61963;
 
-$body-bg: black;
+$body-bg: $dark;
 $body-secondary-bg: shade-color($body-bg, 30%);
 $body-tertiary-bg: shade-color($body-bg, 60%);
-$body-color: $dark;
+
 $body-emphasis-color: $info;
+
+$body-color: $light;
 $body-secondary-color: tint-color($secondary, 40%);
 $body-tertiary-color: tint-color($secondary, 80%);
 
@@ -34,34 +36,15 @@ $body-tertiary-color: tint-color($secondary, 80%);
 
 //Parallax scrolling
 
-.layer {
+.parallax-bg {
   width: 100%;
-  min-height: 1000px;
+  min-height: 500px;
   background-position: center;
   background-repeat: no-repeat;
   background-size: cover;
-  background-attachment: fixed;
-}
+  will-change: transform;
 
-
-
-#parallax-bg {
-  @extend .layer;
   background-image: url("/static/images/background-layer.png");
-  opacity: 0.5;
-}
-
-
-#parallax-mid {
-  @extend .layer;
-  background-image: url("/static/images/midground-layer.png");
-  opacity: 0.7;
-}
-
-
-#parallax-fg {
-  @extend .layer;
-  background-image: url("/static/images/foreground-layer.png");
   opacity: 1;
 }
 
@@ -75,35 +58,19 @@ $theme-colors: (
   "success": $success,
   "danger": $danger,
   "warning": $warning,
-  "info": $info,
-  "tertiary": shade-color($body-bg, 20%)
+  "info": $info
 );
 
 @import "../node_modules/bootstrap/scss/mixins";
 @import "../node_modules/bootstrap/scss/nav";
 
 $component-active-bg: $primary;
-$link-color: $primary;
-$link-hover-color: shade-color($primary, 40%);
+$link-color: $info;
+$link-hover-color: tint-color($link-color, 40%);
 
 @import "../node_modules/bootstrap/scss/buttons";
 
-// custom elements
-
-.custom-element {
-  color: $primary;
-  background-color: $body-bg;
-}
-
-.custom-element-1 {
-  color: tint-color($primary, 10%)
-}
-
-.custom-element-2 {
-  color: shade-color($danger, 40%)
-}
-
-// Required
+// end Required
 
 @import "../node_modules/bootstrap/scss/variables-dark";
 @import "../node_modules/bootstrap/scss/maps";
