@@ -92,9 +92,8 @@ def start_jetstream_listener():
   # initialize the database
   init_db('jetstream')
   init_db('worker_done')
-  print(f'max_events={request.args.get('max_events', 'None')}')
-  print(f'pattern={request.args.get('pattern', 'None')}')
   # begin worker. 
+  # initiate worker_done.
   firehose.loop.call_soon_threadsafe(
     asyncio.create_task,
     firehose.jetstream_worker(
@@ -103,7 +102,7 @@ def start_jetstream_listener():
       event_type=request.args.get('pattern', 'post')
     )
   )
-  return render_template('bluesky.html')
+  return render_template('bluesky_1.html')
 
 
 @app.route('/worker_status')
@@ -119,8 +118,9 @@ def worker_status():
 
 @app.route('/get_stream_csv', methods=['GET'])
 def get_stream_csv():
+  """Get the csv while in bluesky_1."""
   stream_files.get_jetstream_csv(db_path=app.config['DATABASE'])
-  return render_template('bluesky.html')
+  return render_template('bluesky_1.html')
 
 
 @app.route('/', methods=['GET'])
@@ -129,6 +129,7 @@ def main():
   init_db('worker_done')
   return render_template('main.html')
 
+"""Bluesky Paths."""
 
 @app.route('/bluesky', methods=['POST', 'GET'])
 def bluesky():
@@ -152,9 +153,19 @@ def bluesky():
     except ValueError:
       return redirect(url_for('static', filename='notfound.html'))
     db_insert.bsky(db, bluesky_length) 
-    files.get_bluesky_csv(db)      
     return render_template('bluesky.html')
   return render_template('bluesky.html')
+
+@app.route('/bluesky_1', methods=['POST'])
+def bluesky_1():
+  """Page in which, after a complete request, CSV download
+  is an option."""
+  db = get_db()
+  files.get_bluesky_csv(db)
+  return render_template('bluesky_1.html')
+
+"""End Bluesky Paths."""
+
 
 @app.route('/x', methods=['GET', 'POST'])
 def x():
@@ -208,3 +219,4 @@ def docs():
 def see_more():
   """What the user sees when they click 'see more'."""
   return render_template('see_more.html')
+
