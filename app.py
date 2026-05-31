@@ -93,7 +93,6 @@ def start_jetstream_listener():
   init_db('jetstream')
   init_db('worker_done')
   # begin worker. 
-  # initiate worker_done.
   firehose.loop.call_soon_threadsafe(
     asyncio.create_task,
     firehose.jetstream_worker(
@@ -123,6 +122,7 @@ def get_stream_csv():
   return render_template('bluesky_1.html')
 
 
+
 @app.route('/', methods=['GET'])
 def main():
   init_db()
@@ -147,11 +147,6 @@ def bluesky():
       db.execute('DELETE FROM second_dim_for_bluesky')
       db.commit()
     bluesky_length: int = 10
-    # Here, we bug-check. We ensure the user entered valid input.
-    try:
-      bluesky_length = int(request.args.get('bluesky_length', 'None')) 
-    except ValueError:
-      return redirect(url_for('static', filename='notfound.html'))
     db_insert.bsky(db, bluesky_length) 
     return render_template('bluesky.html')
   return render_template('bluesky.html')

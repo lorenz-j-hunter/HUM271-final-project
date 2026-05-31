@@ -93,8 +93,9 @@
       }
     </style>
     <script src="{{url_for('static', filename='activate_b_1.js')}}"></script>
+    <script src="{{ url_for('static', filename='parallax.js')}}"></script>
   </head>
-  <body>
+  <body class="parallax-bg" data-speed="0.1">
     <title hidden>This is the grid image.</title>
     <svg xmlns="http://www.w3.org/2000/svg" class="d-none">
       <symbol id="grid" viewBox="0 0 16 16">
@@ -126,10 +127,28 @@
         <hr />
         <ul class="nav nav-pills flex-column mb-auto">
           <li class="nav-item">
-            <form action="{{url_for('main')}}" method="GET" class="nav-link link-body-emphasis">
-              <button type="submit" class="nav-link">Main</button>
-            </form>
+            <!--Container-->
+            <div class="container">
+              <div class="row">
+                <!--Main-->
+                <div class="col-sm-6">
+                  <form action="{{url_for('main')}}" method="GET" class="nav-link link-body-emphasis">
+                    <button type="submit" class="nav-link">Main</button>
+                  </form>
+                </div>
+                <!--End Main-->
+                <!--Back-->
+                <div class="col-sm-6">
+                  <form action="{{url_for('bluesky')}}" method="POST" class="nav-link link-body-emphasis">
+                    <button type="submit" class="nav-link">Back</button>
+                  </form>
+                </div>
+                <!--End Back-->
+              </div>
+              <!--End container-->
+            </div>
           </li>
+          <hr />
           <!--Download Stream CSV-->
           <li id="stream-csv" style="content-visibility: hidden;">
             <span class="bg-success"
@@ -149,6 +168,7 @@
               <button class="nav-link" type="submit">Download Stream CSV</button>
             </form>
           </li>
+          <!--End Download Stream CSV-->
         </ul>
         <hr />
       </div>
