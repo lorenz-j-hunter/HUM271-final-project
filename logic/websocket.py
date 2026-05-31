@@ -105,3 +105,5 @@ async def parse(event):
     ret['created_at'] = {'data': record.get('createdAt')}
 
   return ret
+
+"""Open async for REST api"""

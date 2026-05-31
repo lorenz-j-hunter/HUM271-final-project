@@ -2,7 +2,7 @@ import os, asyncio
 from flask import Flask, render_template, g, request, redirect, url_for, jsonify
 from sqlite3 import dbapi2 as sqlite3
 from logic import websocket as firehose 
-from logic import db_insert
+from logic import insertion
 from logic import csv as files
 from logic import jetstream_csv as stream_files
 
@@ -84,7 +84,7 @@ def close_db(error):
         g.sqlite_db.close()
 
 
-"""Begin endpoints for html pages"""
+"""Begin stream endpoints"""
 
 @app.route('/start_jetstream_listener', methods=['GET'])
 def start_jetstream_listener():
@@ -122,14 +122,17 @@ def get_stream_csv():
   return render_template('bluesky_1.html')
 
 
+"""End stream endpoints"""
+
 
 @app.route('/', methods=['GET'])
 def main():
   init_db()
-  init_db('worker_done')
   return render_template('main.html')
 
+
 """Bluesky Paths."""
+
 
 @app.route('/bluesky', methods=['POST', 'GET'])
 def bluesky():
@@ -138,28 +141,33 @@ def bluesky():
   - We also store the stuff in a SQLite database
   """
   if request.method == 'GET':
-    init_db('bluesky')
     # Before we do anything, we need to reset.
     # This means getting API responses and deleting the previous 
     # request information.
-    with get_db() as db:
-      db.execute('DELETE FROM first_dim_for_bluesky')
-      db.execute('DELETE FROM second_dim_for_bluesky')
-      db.commit()
-    bluesky_length: int = 10
-    db_insert.bsky(db, bluesky_length) 
-    return render_template('bluesky.html')
+    init_db('bluesky')
+    init_db('worker_done')
+    # This is the REST API procedure.
+    # Control entering this statement implies the user
+    # selected the 'REST API' button.
+    insertion.clear_bsky(app.config['DATABASE'])
+    insertion.bsky(app.config['DATABASE']) 
+    return render_template('bluesky_1a.html')
   return render_template('bluesky.html')
 
-@app.route('/bluesky_1', methods=['POST'])
-def bluesky_1():
+
+@app.route('/get_rest_csv', methods=['POST'])
+def get_rest_csv():
   """Page in which, after a complete request, CSV download
   is an option."""
   db = get_db()
   files.get_bluesky_csv(db)
-  return render_template('bluesky_1.html')
+  return render_template('bluesky_1a.html')
+
 
 """End Bluesky Paths."""
+
+
+"""Begin X Paths."""
 
 
 @app.route('/x', methods=['GET', 'POST'])
@@ -177,10 +185,14 @@ def x():
     except ValueError:
       return redirect(url_for('static', filename='notfound.html'))
     db = get_db()
-    db_insert.x(db, x_length)
+    insertion.x(db, x_length)
     files.get_x_csv(db)
     return render_template('x.html')
   return render_template('x.html')
+
+
+"""End X Paths."""
+
 
 @app.route('/pornhub', methods=['POST', 'GET'])
 def pornhub():
@@ -197,7 +209,7 @@ def pornhub():
     except ValueError:
       return redirect(url_for('static', filename='notfound.html'))
     db = get_db()
-    field_error = db_insert.pornhub(db, request, pornhub_length)
+    field_error = insertion.pornhub(db, request, pornhub_length)
     # if there is an error, just redirect control back 
     if field_error:
       return render_template('pornhub.html', code=True) 
