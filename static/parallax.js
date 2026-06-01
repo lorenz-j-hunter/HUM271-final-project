@@ -1,41 +1,42 @@
-endpoint = 1000
+startpoint = 50; 
+endpoint = 1000;
 
 const layers = [
   {
     el: document.querySelector(".parallax-bg"),
-    start: 0,
+    start: startpoint,
     end: endpoint,
-    speed: 80   // slowest
+    speed: 80  
   }
 ];
 
-window.addEventListener("scroll", () => {
-  const y = window.scrollY;
+['scroll', 'DOMContentLoaded'].forEach(event => {
+  window.addEventListener(event, () => {
+    const y = window.scrollY;
 
-  for (const layer of layers) {
-    const { el, start, end, speed } = layer;
+    for (const layer of layers) {
+      const { el, start, end, speed } = layer;
 
-    if (y < start) {
-      // FIXED MODE (before range)
-      el.style.backgroundAttachment = "fixed";
-      el.style.backgroundPositionY = "center";
-      continue;
+      if (y < start) {
+        // FIXED MODE (before range)
+        el.style.backgroundAttachment = "fixed";
+        el.style.backgroundPositionY = `-${start}px`;
+        continue;
+      }
+
+      if (y > end) {
+        // FIXED MODE (after range)
+        el.style.backgroundAttachment = "fixed";
+        el.style.backgroundPositionY = `-${end}px`;
+        continue;
+      }
+
+      // TRANSFORM MODE (between start and end)
+      el.style.backgroundAttachment = "scroll";
+      const progress = (y - start) / (end - start); // 0 → 1
+      const offset = progress * speed;
+
+      el.style.backgroundPositionY = `-${offset}px`;
     }
-
-    if (y > end) {
-      // FIXED MODE (after range)
-      el.style.backgroundAttachment = "fixed";
-      el.style.marginTop = `${end}px`;
-      el.style.backgroundPositionY = "center";
-      continue;
-    }
-
-    // TRANSFORM MODE (between start and end)
-    el.style.backgroundAttachment = "scroll";
-
-    const progress = (y - start) / (end - start); // 0 → 1
-    const offset = progress * speed;
-
-    el.style.backgroundPositionY = `-${offset}px`;
-  }
+  })
 });
