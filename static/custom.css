@@ -10310,9 +10310,12 @@ textarea.form-control-lg {
   background-color: rgba(var(--bs-success-rgb), var(--bs-bg-opacity)) !important;
   color: rgba(var(#cb7c94), var(--bs-bg-opacity)) !important; }
 
+.parallax-body {
+  min-height: 1000px; }
+
 .parallax-bg {
   width: 100%;
-  min-height: 500px;
+  min-height: 1000px;
   background-position: center;
   background-repeat: no-repeat;
   background-size: cover;

@@ -34,11 +34,21 @@ $body-tertiary-color: tint-color($secondary, 80%);
   color: rgba(var($primary), var(--bs-bg-opacity)) !important;
 }
 
+// Body Alignment
+
+$min-height: 1000px;
+
+.parallax-body {
+  min-height: $min-height;
+}
+
+// end Body Alignment
+
 //Parallax scrolling
 
 .parallax-bg {
   width: 100%;
-  min-height: 500px;
+  min-height: $min-height;
   background-position: center;
   background-repeat: no-repeat;
   background-size: cover;

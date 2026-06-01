@@ -96,9 +96,9 @@
     <script src="{{ url_for('static', filename='main.js') }}"></script>
 
   </head>
-  <body>
+  <body class="parallax-body">
     <!--Background layer-->
-    <div class="parallax-bg" data-speed="0.2">
+    <div class="parallax-bg" data-speed="0.8">
       <header
         class="d-flex flex-wrap justify-content-center py-3 mb-4 border-bottom"
       >
@@ -183,7 +183,7 @@
       <!--Footer-->
       <div class="container">
         <footer
-          class="row row-cols-1 row-cols-sm-2 row-cols-md-5 py-5 my-5 border-top"
+          class="row row-cols-1 row-cols-sm-2 row-cols-md-5 py-5 my-0 border-top"
         >
           <div class="col mb-3">
             <p class="text-body-secondary">&copy; 2026</p>
@@ -254,10 +254,10 @@
       <!--Footer-->
     </div>
     <!--Background layer-->
-    <script
-      src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js"
-      class="astro-vvvwv3sm"
-    ></script>
-    <script src="{{ url_for('static', filename='parallax.js') }}"></script>
   </body>
+  <script
+    src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js"
+    class="astro-vvvwv3sm"
+  ></script>
+  <script src="{{ url_for('static', filename='parallax.js') }}"></script>
 </html>
