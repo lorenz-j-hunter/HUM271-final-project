@@ -50,25 +50,30 @@ $body-tertiary-color: tint-color($secondary, 80%);
 
 //end parallax scrolling
 
-$theme-colors: ( 
-  "body-bg": $body-bg,
-  "body-color": $body-color,
-  "primary": $primary,
-  "secondary": $secondary,
-  "success": $success,
-  "danger": $danger,
-  "warning": $warning,
-  "info": $info
-);
 
 @import "../node_modules/bootstrap/scss/mixins";
 @import "../node_modules/bootstrap/scss/nav";
+
+// Nav overrides
 
 $component-active-bg: $primary;
 $link-color: $info;
 $link-hover-color: tint-color($link-color, 40%);
 
+// End Nav overrides
+
 @import "../node_modules/bootstrap/scss/buttons";
+
+// Button default overrides
+$btn-bg: $info;
+$btn-color: $secondary;
+$btn-active-bg: tint-color($btn-bg, 40%);
+$btn-active-color: tint-color($btn-color, 40%);
+
+$btn-link-color: $btn-color;
+$btn-link-hover-color: tint-color($btn-link-color, 80%);
+
+// end button default overrides
 
 // end Required
 

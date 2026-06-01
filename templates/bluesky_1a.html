@@ -92,7 +92,7 @@
         display: block !important;
       }
     </style>
-    <script src="{{ url_for('static', filename='activate_b.js')}}"></script>
+    <script src="{{url_for('static', filename='activate_b.js')}}"></script>
     <script src="{{ url_for('static', filename='parallax.js')}}"></script>
   </head>
   <body class="parallax-bg" data-speed="0.1">
@@ -125,74 +125,44 @@
           <span class="fs-4">Bluesky</span>
         </a>
         <hr />
-        <!--Main-->
-        <div class="container text-center">
-          <div class="row">
-            <div class="col"></div>
-            <div class="col">
-              <form action="{{url_for('main')}}" method="GET" class="nav-link link-body-emphasis">
-                <button type="submit" class="btn btn-secondary">Main</button>
-              </form>
-            </div>
-            <div class="col"></div>
-          </div>
-        </div>
-        <!--End Main-->
-        <ul class="nav nav-pills">
-          <!--Dropdown-->
-          <li>
-            <p class="py-3">Enter the type of request you'd like.</p>
+        <ul class="nav nav-pills flex-column mb-auto">
+          <li class="nav-item">
             <!--Container-->
-            <div class="container text-center">
+            <div class="container">
               <div class="row">
-                <div class="col d-flex align-items-center">
-                  <select name="option" form="form" class="form-select form-select-sm">
-                    <option disabled selected></option>
-                    <option value="rest">
-                      REST API
-                    </option>
-                    <option value="jetstream">
-                      Jetstream
-                    </option>
-                  </select>
-                </div>
-                <div class="col d-flex align-items-center">
-                  <form id="form">
-                    <button class="btn btn-secondary" type="submit">Enter</button>
+                <!--Main-->
+                <div class="col-sm-6">
+                  <form action="{{url_for('main')}}" method="GET" class="nav-link link-body-emphasis">
+                    <button type="submit" class="nav-link">Main</button>
                   </form>
                 </div>
+                <!--End Main-->
+                <!--Back-->
+                <div class="col-sm-6">
+                  <form action="{{url_for('bluesky')}}" method="POST" class="nav-link link-body-emphasis">
+                    <button type="submit" class="nav-link">Back</button>
+                  </form>
+                </div>
+                <!--End Back-->
               </div>
             </div>
-            <!--Container-->
+            <!--End container-->
           </li>
-          <!--End Dropdown-->
-          <!--REST API-->
-          <li id="rest" style="content-visibility: hidden;">
-            <form action="{{url_for('bluesky')}}"
-            method="GET"
-            class="nav-link link-body-emphasis"
-            onsubmit="activate()"
-            name="form" value="rest"
-            >
-              Select Number of Responses 
-              <input type="text" name="bluesky_length" pattern="[0-9]{1,2}" required>
-              <button type="submit" class="nav-link">Submit</button>
-            </form>
-          </li>
-          <!--End REST API-->
-          <!--Jetstream-->
+          <hr />
+          <!--Download REST CSV-->
           <li id="csv" style="content-visibility: hidden;">
-            <a class="nav-link" href="../csvfiles/bluesky.csv" download>Download CSV</a>
-          </li>
-          <li id="jetstream" style="content-visibility: hidden;">
-            <form action="{{url_for('start_jetstream_listener')}}" method="GET" class="nav-link link-body-emphasis">
-              Select # Responses And Type
-              <input type="text" placeholder="# of responses" name="max_events" required pattern="[0-9]{1,5}">
-              <input type="text" placeholder="Type of response" name="pattern" required pattern="(post)|(follow)">
-              <button type="submit" class="nav-link">Start Stream</button>
+            <form action="{{url_for('get_rest_csv')}}" method="GET">
+              <a id="download-link"
+                href="../../csvfiles/bluesky.csv"
+                class="nav-link link-body-emphasis"
+                download hidden
+              >
+                Download REST CSV
+              </a>
+              <button class="nav-link" type="submit">Download REST CSV</button>
             </form>
           </li>
-          <!--End Jetstream-->
+          <!--End Download REST CSV-->
         </ul>
         <hr />
       </div>
