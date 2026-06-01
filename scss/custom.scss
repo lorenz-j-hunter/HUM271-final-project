@@ -11,12 +11,12 @@ $component-active-bg: #70378f; //info
 $light: #aae9e3;
 $white: #fff;
 $dark: #191361;
-$primary: #262121;
+$primary: #cb7c94;
 $secondary: #bdbfbe;
 $info: #70378f;
 $success: #fff;
 $warning: #fdba59;
-$danger: #e61963;
+$danger: #5e1111;
 
 $body-bg: $dark;
 $body-secondary-bg: shade-color($body-bg, 30%);
@@ -50,6 +50,20 @@ $body-tertiary-color: tint-color($secondary, 80%);
 
 //end parallax scrolling
 
+// End theme colors
+
+$theme-colors: ( 
+  "light": $light,
+  "white": $white,
+  "dark": $dark,
+  "primary": $primary,
+  "secondary": $secondary,
+  "info": $success,
+  "success": $warning,
+  "danger": $danger
+);
+
+// End theme colors
 
 @import "../node_modules/bootstrap/scss/mixins";
 @import "../node_modules/bootstrap/scss/nav";
