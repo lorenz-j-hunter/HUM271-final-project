@@ -93,9 +93,9 @@
       }
     </style>
     <script src="{{ url_for('static', filename='activate_b.js')}}"></script>
-    <script src="{{ url_for('static', filename='parallax.js')}}"></script>
+    <script src="{{ url_for('static', filename='parallax_bsky.js')}}"></script>
   </head>
-  <body class="parallax-bg" data-speed="0.1">
+  <body class="parallax-bsky" data-speed="0.1">
     <title hidden>This is the grid image.</title>
     <svg xmlns="http://www.w3.org/2000/svg" class="d-none">
       <symbol id="grid" viewBox="0 0 16 16">
@@ -146,20 +146,18 @@
             <div class="container text-center">
               <div class="row">
                 <div class="col d-flex align-items-center">
-                  <select name="option" form="form" class="form-select form-select-sm">
-                    <option disabled selected></option>
-                    <option value="rest">
-                      REST API
-                    </option>
-                    <option value="jetstream">
-                      Jetstream
-                    </option>
-                  </select>
-                </div>
-                <div class="col d-flex align-items-center">
-                  <form id="form">
-                    <button class="btn btn-secondary" type="submit">Enter</button>
-                  </form>
+                  <div class="dropdown">
+                    <button class="dropdown-toggle btn btn-primary" 
+                      type="button" data-bs-toggle="dropdown"
+                      aria-expanded="false" role="button"
+                    >
+                      Choose Method
+                    </button>
+                    <ul class="dropdown-menu">
+                      <li><a class="dropdown-item" href="#" onclick="show_rest()">REST API</a></li>
+                      <li><a class="dropdown-item" href="#" onclick="show_jetstream()">Jetstream</a></li>
+                    </ul>
+                  </div>
                 </div>
               </div>
             </div>
@@ -167,11 +165,10 @@
           </li>
           <!--End Dropdown-->
           <!--REST API-->
-          <li id="rest" style="content-visibility: hidden;">
+          <li id="rest">
             <form action="{{url_for('bluesky')}}"
             method="GET"
             class="nav-link link-body-emphasis"
-            onsubmit="activate()"
             name="form" value="rest"
             >
               Select Number of Responses 
@@ -181,10 +178,7 @@
           </li>
           <!--End REST API-->
           <!--Jetstream-->
-          <li id="csv" style="content-visibility: hidden;">
-            <a class="nav-link" href="../csvfiles/bluesky.csv" download>Download CSV</a>
-          </li>
-          <li id="jetstream" style="content-visibility: hidden;">
+          <li id="jetstream">
             <form action="{{url_for('start_jetstream_listener')}}" method="GET" class="nav-link link-body-emphasis">
               Select # Responses And Type
               <input type="text" placeholder="# of responses" name="max_events" required pattern="[0-9]{1,5}">

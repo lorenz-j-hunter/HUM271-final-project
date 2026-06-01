@@ -1,9 +1,9 @@
 startpoint = 50; 
-endpoint = 1000;
+endpoint = 100;
 
 const layers = [
   {
-    el: document.querySelector(".parallax-bg"),
+    el: document.querySelector(".parallax-bsky"),
     start: startpoint,
     end: endpoint,
     speed: 80  

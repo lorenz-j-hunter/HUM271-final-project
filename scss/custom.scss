@@ -58,6 +58,19 @@ $min-height: 1000px;
   opacity: 1;
 }
 
+.parallax-bsky {
+  width: 100%;
+  min-height: 100px;
+  max-height: 400px;
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: cover;
+  will-change: transform;
+
+  background-image: url("/static/images/background-layer.png");
+  opacity: 1;
+}
+
 //end parallax scrolling
 
 // End theme colors

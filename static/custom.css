@@ -10323,6 +10323,17 @@ textarea.form-control-lg {
   background-image: url("/static/images/background-layer.png");
   opacity: 1; }
 
+.parallax-bsky {
+  width: 100%;
+  min-height: 100px;
+  max-height: 400px;
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: cover;
+  will-change: transform;
+  background-image: url("/static/images/background-layer.png");
+  opacity: 1; }
+
 .nav {
   --bs-nav-link-padding-x: 1rem;
   --bs-nav-link-padding-y: 0.5rem;
