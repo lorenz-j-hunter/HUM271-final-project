@@ -1,7 +1,9 @@
-from logic.originals import get_bluesky, get_pornhub, get_x
+from logic.insertion import get_bluesky, get_pornhub, get_x
 import requests, os
 from utils.utils import get_age
 from utils.classes import compound
+
+"""Here, we insert request data into the database for REST API."""
 
 def bsky(db, bluesky_length=10):
   """Add response data to the Bluesky database table."""

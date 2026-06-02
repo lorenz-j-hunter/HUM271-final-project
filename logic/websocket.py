@@ -81,8 +81,6 @@ async def parse(event):
   """Selectively add to the events list"""
   ret: dict = {}
   
-  ret['did'] = event.get('did')
-
   # The message may not be a commit.
   commit = event.get('commit')
   if not commit:
@@ -113,3 +111,52 @@ async def parse(event):
     ret['rkey'] = commit.get('rkey')
 
   return ret
+
+"""Update"""
+
+async def jetstream_update(db_path, max_events=10000):
+  """Look through the stream for any follow deletions or profile info changes
+  which can be used to update the graph."""
+  #
+  db = sqlite3.connect(db_path, check_same_thread=False)
+  db.row_factory = sqlite3.Row
+  async for event in jetstream_stream(): 
+    count = 0
+    ret: dict = await update(event)
+    if ret['status'] is 'success':
+      if ret['action'] == 'delete':
+        # delete a follow
+        pass
+      elif ret['action'] == 'update':
+        # do something
+        pass
+    if count > max_events:
+      print('Reached max events, stopping update.')
+      db.close()
+      break
+
+async def update(event):
+  """Filter events based on whether they can be used to update the 
+  graph."""
+  ret: dict = {}
+  # The message may not be a commit.
+  commit = event.get('commit')
+  if not commit:
+    ret['status'] = 'failure' 
+    return ret
+
+  # The message may not have a record.
+  # The record is where all of the valuable info is.  
+  record = commit.get('record')
+  if not record:
+    ret['status'] = 'failure' 
+    return ret
+
+  ret['status'] = 'success'
+  ret['path'] = record.get('$type')
+
+  if commit.get('operation') == 'delete':
+    ret['op'] = 'delete'
+  elif commit.get('operation') == 'update':
+    ret['op'] = 'update'
+  return ret 

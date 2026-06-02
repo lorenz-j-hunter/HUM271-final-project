@@ -121,6 +121,17 @@ def get_stream_csv():
   stream_files.get_jetstream_csv(db_path=app.config['DATABASE'])
   return render_template('bluesky_jetstream.html')
 
+@app.route('/update_stream_db', methods=['POST'])
+def update_stream_db():
+  """Update the db to reflect changes."""
+  # update the graph without re-initialization.
+  firehose.loop.call_soon_threadsafe(
+    asyncio.create_task,
+    firehose.jetstream_update(
+      db_path=app.config['DATABASE'],
+    )
+  )
+  return render_template('bluesky_jetstream.html')
 
 """End stream endpoints"""
 
@@ -197,6 +208,8 @@ def x():
 """End X Paths."""
 
 
+"""Begin Pornhub Paths."""
+
 @app.route('/pornhub', methods=['POST', 'GET'])
 def pornhub():
   """Open the route which uses the pornhub api. 
@@ -219,6 +232,10 @@ def pornhub():
     files.get_pornhub_csv(db)
     return render_template('pornhub.html')
   return render_template('pornhub.html')
+
+
+"""End Pornhub Paths."""
+
 
 @app.route('/docs', methods=['POST'])
 def docs():
