@@ -37,31 +37,35 @@ async def jetstream_worker(db_path, max_events, event_type):
     event_type = 'app.bsky.graph.follow'
   # sift through the stream
   async for event in jetstream_stream():
-    ret: dict[str, dict[str,str]] = await parse(event)
-    # Add to the database`
-    if ret['status'].get('data', 'None') == 'success':
+    ret: dict = await parse(event)
+    # Only add successful messages. 
+    if ret['status'] == 'success':
       db = sqlite3.connect(db_path, check_same_thread=False)
       db.row_factory = sqlite3.Row
-      if ret['type'].get('data', 'None') == 'app.bsky.feed.post' == event_type:
+      # Add to the database (posts)
+      if ret['path'].find(event_type) != -1 and 'app.bsky.feed.post' == event_type:
         db.execute('INSERT INTO jetstream_post (type, text, created_at) VALUES (?, ?, ?)',
-                [ret['type'].get('data'),
-                ('None' if 'None' == ret.get('text', 'None') else ret['text'].get('data')),
-                ('None' if 'None' == ret.get('created_at', 'None') else ret['created_at'].get('data'))])
+                ['post', ret['text'], ret['created_at']])
         db.commit()
         db.close()
         count += 1
-      # Add to the database.
-      elif ret['type'].get('data', 'None') == 'app.bsky.graph.follow' == event_type:
+      # Add to the database. (follows)
+      elif ret['path'].find(event_type) != -1 and 'app.bsky.graph.follow' == event_type:
         db = sqlite3.connect(db_path, check_same_thread=False)
         db.row_factory = sqlite3.Row
-        db.execute('INSERT INTO jetstream_follow (type, target, origin, created_at) VALUES (?, ?, ?, ?)',
-                  [ret['type'].get('data'),
-                  ('None' if 'None' == ret.get('subject', 'None') else ret['subject'].get('data')),
-                  ('None' if 'None' == ret.get('origin', 'None') else ret['origin'].get('data')),
-                  ('None' if 'None' == ret.get('created_at', 'None') else ret['created_at'].get('data'))])
-        db.commit()
-        db.close()
-        count += 1
+        # a person has followed someone
+        if ret['op'] == 'create':
+          db.execute('INSERT INTO follows (follower, followee, created_at) VALUES (?, ?, ?)',
+                    [ret['follower'], ret['followee'], ret['created_at']])
+          db.commit()
+          db.close()
+          count += 1
+        # a person has unfollowed. 
+        elif ret['op'] == 'delete':
+          db.execute('DELETE FROM jetstream_follow WHERE origin == (?)',
+                     [ret['follower']])
+          db.commit()
+          db.close()
     # We stop when we have exceeded the desired limit
     if count >= max_events:
       print("Reached max events, stopping worker")
@@ -75,35 +79,35 @@ async def jetstream_worker(db_path, max_events, event_type):
 
 async def parse(event):
   """Selectively add to the events list"""
-  ret: dict[str, dict[str,str]] = {}
+  ret: dict = {}
   
-  ret['did'] = {'data': event.get('did')}
+  ret['did'] = event.get('did')
 
   # The message may not be a commit.
   commit = event.get('commit')
   if not commit:
-    ret['status'] = {'data': 'None'}
+    ret['status'] = 'failure' 
     return ret
 
   # The message may not have a record.
   # The record is where all of the valuable info is.  
   record = commit.get('record')
   if not record:
-    ret['status'] = {'data': 'None'}
+    ret['status'] = 'failure' 
     return ret
 
-  ret['status'] = {'data': 'success'}
-  ret['type'] = {'data': record.get('$type')}
+  ret['status'] = 'success'
+  ret['path'] = record.get('$type')
 
   # We recognize two options in the whole: post and follow.
-  if ret['type'].get('data', 'None') == 'app.bsky.feed.post':
-    ret['text'] = {'data': record.get('text')}
-    ret['created_at'] = {'data': record.get('createdAt')}
-  elif ret['type'].get('data', 'None') == 'app.bsky.graph.follow':
-    ret['subject'] = {'data': record.get('subject')}
-    ret['origin'] = {'data': event.get('did')}
-    ret['created_at'] = {'data': record.get('createdAt')}
+  if ret['path'].find('app.bsky.feed.post') != -1:
+    ret['text'] = record.get('text')
+    ret['created_at'] = record.get('createdAt')
+
+  elif ret['path'].find('app.bsky.graph.follow') != -1:
+    ret['followee'] = record.get('subject')
+    ret['follower'] = event.get('did')
+    ret['created_at'] = record.get('createdAt')
+    ret['op'] = commit.get('operation')
 
   return ret
-
-"""Open async for REST api"""
