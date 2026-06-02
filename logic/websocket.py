@@ -55,7 +55,7 @@ async def jetstream_worker(db_path, max_events, event_type):
         db.row_factory = sqlite3.Row
         # a person has followed someone
         if ret['op'] == 'create':
-          db.execute('INSERT INTO follows (follower, followee, created_at, rkey) VALUES (?, ?, ?, ?)',
+          db.execute('INSERT OR IGNORE INTO follows (follower, followee, created_at, rkey) VALUES (?, ?, ?, ?)',
                     [ret['follower'], ret['followee'], ret['created_at'], ret['rkey']])
           db.commit()
           db.close()

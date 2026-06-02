@@ -1,5 +1,5 @@
 drop table if exists posts;
-create table jetstream_post (
+create table posts (
   author_id text not null,
   "text" text not null,
   created_at text not null 
@@ -9,10 +9,10 @@ drop table if exists follows;
 create table follows (
   follower text not null,
   followee text not null,
-  PRIMARY KEY (follower, followee),
   created_at text not null,
-  rkey text not null -- used for edge deletion
-)
+  rkey text not null, -- used for edge deletion
+  PRIMARY KEY (follower, followee)
+);
 
 --Either `block` or `profile` will be filled. 
 drop table if exists updates;
