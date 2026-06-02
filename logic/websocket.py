@@ -44,8 +44,8 @@ async def jetstream_worker(db_path, max_events, event_type):
       db.row_factory = sqlite3.Row
       # Add to the database (posts)
       if ret['path'].find(event_type) != -1 and 'app.bsky.feed.post' == event_type:
-        db.execute('INSERT INTO jetstream_post (type, text, created_at) VALUES (?, ?, ?)',
-                ['post', ret['text'], ret['created_at']])
+        db.execute('INSERT INTO posts (author_id, text, created_at) VALUES (?, ?, ?)',
+                [ret['author_id'], ret['text'], ret['created_at']])
         db.commit()
         db.close()
         count += 1
@@ -55,15 +55,15 @@ async def jetstream_worker(db_path, max_events, event_type):
         db.row_factory = sqlite3.Row
         # a person has followed someone
         if ret['op'] == 'create':
-          db.execute('INSERT INTO follows (follower, followee, created_at) VALUES (?, ?, ?)',
-                    [ret['follower'], ret['followee'], ret['created_at']])
+          db.execute('INSERT INTO follows (follower, followee, created_at, rkey) VALUES (?, ?, ?, ?)',
+                    [ret['follower'], ret['followee'], ret['created_at'], ret['rkey']])
           db.commit()
           db.close()
           count += 1
         # a person has unfollowed. 
         elif ret['op'] == 'delete':
-          db.execute('DELETE FROM jetstream_follow WHERE origin == (?)',
-                     [ret['follower']])
+          db.execute('DELETE FROM follows WHERE rkey = (?)',
+                           [ret['rkey']])
           db.commit()
           db.close()
     # We stop when we have exceeded the desired limit
@@ -101,6 +101,7 @@ async def parse(event):
 
   # We recognize two options in the whole: post and follow.
   if ret['path'].find('app.bsky.feed.post') != -1:
+    ret['author_id'] = event.get('did')
     ret['text'] = record.get('text')
     ret['created_at'] = record.get('createdAt')
 
@@ -109,5 +110,6 @@ async def parse(event):
     ret['follower'] = event.get('did')
     ret['created_at'] = record.get('createdAt')
     ret['op'] = commit.get('operation')
+    ret['rkey'] = commit.get('rkey')
 
   return ret
