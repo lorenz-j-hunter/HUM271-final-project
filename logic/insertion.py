@@ -15,7 +15,7 @@ def clear_bsky(db_path):
   db.close()
 
 
-def bsky(db_path, bluesky_length=10):
+async def bsky(db_path, bluesky_length=10):
   """Add response data to the Bluesky database table."""
   db = sqlite3.connect(db_path, check_same_thread=False)
   db.row_factory = sqlite3.Row

@@ -101,7 +101,7 @@ def start_jetstream_listener():
       event_type=request.args.get('pattern', 'post')
     )
   )
-  return render_template('bluesky_1.html')
+  return render_template('bluesky_jetstream.html')
 
 
 @app.route('/worker_status')
@@ -117,9 +117,9 @@ def worker_status():
 
 @app.route('/get_stream_csv', methods=['GET'])
 def get_stream_csv():
-  """Get the csv while in bluesky_1."""
+  """Get the csv while in bluesky_jetstream."""
   stream_files.get_jetstream_csv(db_path=app.config['DATABASE'])
-  return render_template('bluesky_1.html')
+  return render_template('bluesky_jetstream.html')
 
 
 """End stream endpoints"""
@@ -150,18 +150,21 @@ def bluesky():
     # Control entering this statement implies the user
     # selected the 'REST API' button.
     insertion.clear_bsky(app.config['DATABASE'])
-    insertion.bsky(app.config['DATABASE']) 
-    return render_template('bluesky_1a.html')
+    firehose.loop.call_soon_threadsafe(
+      asyncio.create_task,
+      insertion.bsky(app.config['DATABASE'])
+    )
+    return render_template('bluesky_rest.html')
   return render_template('bluesky.html')
 
 
-@app.route('/get_rest_csv', methods=['POST'])
+@app.route('/get_rest_csv', methods=['GET'])
 def get_rest_csv():
   """Page in which, after a complete request, CSV download
   is an option."""
   db = get_db()
   files.get_bluesky_csv(db)
-  return render_template('bluesky_1a.html')
+  return render_template('bluesky_rest.html')
 
 
 """End Bluesky Paths."""
