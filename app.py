@@ -5,6 +5,7 @@ from logic import websocket as firehose
 from logic import insertion
 from logic import csv as files
 from logic import jetstream_csv as stream_files
+from logic import backfill
 
 """Create the app and make db commands."""
 app = Flask(__name__, static_folder='static')
@@ -124,6 +125,7 @@ def get_stream_csv():
 @app.route('/update_stream_db', methods=['POST'])
 def update_stream_db():
   """Update the db to reflect changes."""
+  init_db('worker_done')
   # update the graph without re-initialization.
   firehose.loop.call_soon_threadsafe(
     asyncio.create_task,

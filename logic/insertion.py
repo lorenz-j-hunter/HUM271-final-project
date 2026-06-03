@@ -1,4 +1,4 @@
-from logic.make_request import get_bluesky, get_pornhub, get_x
+from logic.rest_request import get_bluesky, get_pornhub, get_x
 import requests, os
 from utils.utils import get_age
 from utils.classes import compound, FieldError

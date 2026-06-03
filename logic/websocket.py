@@ -1,5 +1,6 @@
 import asyncio, threading, websockets, json
 from sqlite3 import dbapi2 as sqlite3
+from logic import backfill as rest_update
 
 """Open a Websocket connection for Blyesky with bluesky firehose"""
 
@@ -8,6 +9,11 @@ loop = asyncio.new_event_loop()
 def loop_runner():
   asyncio.set_event_loop(loop)
   loop.run_forever()
+
+def backfill(db_path):
+  """A wrapper for running a single event on a background loop."""
+  asyncio.run_coroutine_threadsafe(rest_update.backfill(db_path), loop)
+
 
 threading.Thread(target=loop_runner, daemon=True).start()
 
@@ -119,7 +125,7 @@ async def parse(event):
 
 """Update"""
 
-async def jetstream_update(db_path, max_events=10000):
+async def jetstream_update(db_path, max_events=10):
   """Look through the stream for any follow deletions or profiles info changes
   which can be used to update the graph."""
   #
@@ -143,6 +149,8 @@ async def jetstream_update(db_path, max_events=10000):
         db.commit()
         count += 1
     if count > max_events:
+      # asynchronously backfill the graph
+      backfill(db_path)
       print('Reached max events, stopping update.')
       db.close()
       break
@@ -203,3 +211,5 @@ async def update(event):
   else:
     ret['op'] = 'create'
   return ret 
+
+"""End Update"""

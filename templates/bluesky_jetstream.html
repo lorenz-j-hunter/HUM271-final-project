@@ -171,7 +171,7 @@
           <!--End Download Stream CSV-->
           <!--Update Database-->
           <li>
-            <form action="{{url_for('update_stream_db')}}" method="POST">
+            <form action="{{url_for('update_stream_db')}}" method="POST" onclick="dispatch_event()">
               <button class="nav-link" type="submit">Update Database</button>
             </form>
           </li>

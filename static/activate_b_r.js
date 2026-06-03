@@ -19,7 +19,6 @@ async function wait_for_worker() {
     const res = await fetch('/worker_status');
     const data = await res.json();
     if (data.done == 'true') { 
-      console.log('data.done==true');
       document.querySelector('#rest-csv').style = visible;
       document.querySelector('#success').style = visible;
       break;
@@ -34,3 +33,4 @@ wait_for_worker();
 function click_link() {
   document.querySelector('#download-link').click()
 }
+
