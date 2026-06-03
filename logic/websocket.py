@@ -61,8 +61,9 @@ async def jetstream_worker(db_path, max_events, event_type):
         db.row_factory = sqlite3.Row
         # a person has followed someone
         if ret['op'] == 'create':
-          db.execute('INSERT OR IGNORE INTO follows (follower, followee, created_at, rkey) VALUES (?, ?, ?, ?)',
-                    [ret['follower'], ret['followee'], ret['created_at'], ret['rkey']])
+          db.execute('''INSERT OR IGNORE INTO follows (follower, followee, created_at, blocked, rkey)
+                     VALUES (?, ?, ?, ?, ?)''',
+                    [ret['follower'], ret['followee'], ret['created_at'], 'false', ret['rkey']])
           # Create their profiles database for later.
           db.execute('''INSERT OR IGNORE INTO profiles
                      (did, display_name, avatar_cid, banner_cid, website, pronouns, created_at, rkey)
@@ -77,6 +78,13 @@ async def jetstream_worker(db_path, max_events, event_type):
                            [ret['rkey']])
           db.commit()
           db.close()
+      elif ret['path'].find(event_type) != -1 and 'app.bsky.graph.block' == event_type:
+        db = sqlite3.connect(db_path, check_same_thread=False)
+        db.row_factory = sqlite3.Row
+        db.execute('UPDATE follows SET blocked = (?) WHERE follower = (?) AND followee = (?)',
+                   ['true', ret['follower'], ret['followee']])
+        db.commit()
+        db.close()
     # We stop when we have exceeded the desired limit
     if count >= max_events:
       print("Reached max events, stopping worker")
@@ -115,6 +123,13 @@ async def parse(event):
     ret['created_at'] = record.get('createdAt')
 
   elif ret['path'].find('app.bsky.graph.follow') != -1:
+    ret['followee'] = record.get('subject')
+    ret['follower'] = event.get('did')
+    ret['created_at'] = record.get('createdAt')
+    ret['op'] = commit.get('operation')
+    ret['rkey'] = commit.get('rkey')
+
+  elif ret['path'].find('app.bsky.graph.block') != -1:
     ret['followee'] = record.get('subject')
     ret['follower'] = event.get('did')
     ret['created_at'] = record.get('createdAt')
