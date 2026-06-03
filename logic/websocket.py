@@ -57,6 +57,11 @@ async def jetstream_worker(db_path, max_events, event_type):
         if ret['op'] == 'create':
           db.execute('INSERT OR IGNORE INTO follows (follower, followee, created_at, rkey) VALUES (?, ?, ?, ?)',
                     [ret['follower'], ret['followee'], ret['created_at'], ret['rkey']])
+          # Create their profiles database for later.
+          db.execute('''INSERT OR IGNORE INTO profiles
+                     (did, display_name, avatar_cid, banner_cid, website, pronouns, created_at, rkey)
+                     VALUES (?,?,?,?,?,?,?,?)''',
+                     [ret['follower'],'','','','','','',ret['rkey']])
           db.commit()
           db.close()
           count += 1
@@ -115,7 +120,7 @@ async def parse(event):
 """Update"""
 
 async def jetstream_update(db_path, max_events=10000):
-  """Look through the stream for any follow deletions or profile info changes
+  """Look through the stream for any follow deletions or profiles info changes
   which can be used to update the graph."""
   #
   db = sqlite3.connect(db_path, check_same_thread=False)
@@ -123,13 +128,20 @@ async def jetstream_update(db_path, max_events=10000):
   async for event in jetstream_stream(): 
     count = 0
     ret: dict = await update(event)
-    if ret['status'] is 'success':
-      if ret['action'] == 'delete':
+    if ret['status'] == 'success':
+      if ret['op'] == 'delete':
         # delete a follow
-        pass
-      elif ret['action'] == 'update':
-        # do something
-        pass
+        db.execute('DELETE FROM follows WHERE rkey = (?)', [ret['rkey']])
+        db.commit()
+        count += 1
+      elif ret['op'] == 'update':
+        db.execute("UPDATE profiles SET did = (?), display_name = (?), avatar_cid = (?),"
+                  "banner_cid = (?), website = (?), pronouns = (?), created_at = (?)"
+                  "WHERE rkey = (?)",
+                  [ret['did'], ret['display_name'], ret['avatar_cid'], ret['banner_cid'],
+                   ret['website'], ret['pronouns'], ret['created_at'], ret['rkey']])
+        db.commit()
+        count += 1
     if count > max_events:
       print('Reached max events, stopping update.')
       db.close()
@@ -157,6 +169,37 @@ async def update(event):
 
   if commit.get('operation') == 'delete':
     ret['op'] = 'delete'
-  elif commit.get('operation') == 'update':
+    ret['rkey'] = commit.get('rkey')
+  elif commit.get('operation') == 'update' and commit.get('collection') == 'app.bsky.actor.profile':
+    banner = commit.get('banner')
+    avatar = record.get('avatar')
+    labels = commit.get('labels')
     ret['op'] = 'update'
+    ret['rkey'] = commit.get('rkey')
+
+    ret['display_name'] = record.get('displayName')
+    ret['did'] = event.get('did')
+    # there may not be an avatar or banner.
+    if avatar:
+      ret['avatar_cid'] = avatar.get('cid')
+    else:
+      ret['avatar_cid'] = '' 
+    if banner:
+      ret['banner_cid'] = banner.get('cid') 
+    else:
+      ret['banner_cid'] = ''
+    if record.get('website'):
+      ret['website'] = record.get('website')
+    else:
+      ret['website'] = ''
+    if record.get('pronouns'):
+      ret['pronouns'] = record.get('pronouns')
+    else:
+      ret['pronouns'] = ''
+    if labels:
+      ret['created_at'] = labels.get('createdAt')
+    else:
+      ret['created_at'] = ''
+  else:
+    ret['op'] = 'create'
   return ret 
