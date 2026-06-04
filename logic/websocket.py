@@ -152,7 +152,9 @@ async def parse(event):
 
   return ret
 
+
 """Update"""
+
 
 async def jetstream_update(db_path, max_events=10):
   """Look through the stream for any follow deletions or profiles info changes

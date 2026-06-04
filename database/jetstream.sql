@@ -11,7 +11,7 @@ create table follows (
   followee text not null,
   created_at text not null,
   rkey text not null, -- used for edge deletion
-  blocked text not null
+  blocked text not null,
   PRIMARY KEY (follower, followee)
 );
 
