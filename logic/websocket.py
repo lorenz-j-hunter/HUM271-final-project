@@ -18,9 +18,13 @@ def backfill(db_path):
 threading.Thread(target=loop_runner, daemon=True).start()
 
 
-async def jetstream_stream():
+async def jetstream_stream(cursor=None):
   """Open the stream."""
-  url = "wss://jetstream2.us-east.bsky.network/subscribe"
+  url = None
+  if cursor:
+    url = f'wss://jetstream2.us-east.bsky.network/subscribe?cursor={cursor}'
+  else:
+    url = "wss://jetstream2.us-east.bsky.network/subscribe"
 
   async with websockets.connect(url) as ws:
     while True:
@@ -36,64 +40,74 @@ async def jetstream_worker(db_path, max_events, event_type):
   """Get from the stream."""
   # Here is something that lets you pause until worker is done.
   count = 0
+  cursor = None
   # Any event that comes through must match the event type.
   if event_type == 'post':
     event_type = 'app.bsky.feed.post'
   elif event_type == 'follow':
     event_type = 'app.bsky.graph.follow'
-  # sift through the stream
-  async for event in jetstream_stream():
-    ret: dict = await parse(event)
-    # Only add successful messages. 
-    if ret['status'] == 'success':
-      db = sqlite3.connect(db_path, check_same_thread=False)
-      db.row_factory = sqlite3.Row
-      # Add to the database (posts)
-      if ret['path'].find(event_type) != -1 and 'app.bsky.feed.post' == event_type:
-        db.execute('INSERT INTO posts (author_id, text, created_at) VALUES (?, ?, ?)',
-                [ret['author_id'], ret['text'], ret['created_at']])
-        db.commit()
-        db.close()
-        count += 1
-      # Add to the database. (follows)
-      elif ret['path'].find(event_type) != -1 and 'app.bsky.graph.follow' == event_type:
+  # sift through the stream.
+  # If there is a disconnect, reconnect where you left off.
+  while True:
+    isfailure = None
+    async for event in jetstream_stream(cursor):
+      ret: dict = await parse(event)
+      isfailure = event.get('cursor')
+      # Only add successful messages.      
+      if ret['status'] == 'success':
         db = sqlite3.connect(db_path, check_same_thread=False)
         db.row_factory = sqlite3.Row
-        # a person has followed someone
-        if ret['op'] == 'create':
-          db.execute('''INSERT OR IGNORE INTO follows (follower, followee, created_at, blocked, rkey)
-                     VALUES (?, ?, ?, ?, ?)''',
-                    [ret['follower'], ret['followee'], ret['created_at'], 'false', ret['rkey']])
-          # Create their profiles database for later.
-          db.execute('''INSERT OR IGNORE INTO profiles
-                     (did, display_name, avatar_cid, banner_cid, website, pronouns, created_at, rkey)
-                     VALUES (?,?,?,?,?,?,?,?)''',
-                     [ret['follower'],'','','','','','',ret['rkey']])
+        # Add to the database (posts)
+        if ret['path'].find(event_type) != -1 and 'app.bsky.feed.post' == event_type:
+          db.execute('INSERT INTO posts (author_id, text, created_at) VALUES (?, ?, ?)',
+                  [ret['author_id'], ret['text'], ret['created_at']])
           db.commit()
           db.close()
           count += 1
-        # a person has unfollowed. 
-        elif ret['op'] == 'delete':
-          db.execute('DELETE FROM follows WHERE rkey = (?)',
-                           [ret['rkey']])
+        # Add to the database. (follows)
+        elif ret['path'].find(event_type) != -1 and 'app.bsky.graph.follow' == event_type:
+          db = sqlite3.connect(db_path, check_same_thread=False)
+          db.row_factory = sqlite3.Row
+          # a person has followed someone
+          if ret['op'] == 'create':
+            db.execute('''INSERT OR IGNORE INTO follows (follower, followee, created_at, blocked, rkey)
+                      VALUES (?, ?, ?, ?, ?)''',
+                      [ret['follower'], ret['followee'], ret['created_at'], 'false', ret['rkey']])
+            # Create their profiles database for later.
+            db.execute('''INSERT OR IGNORE INTO profiles
+                      (did, display_name, avatar_cid, banner_cid, website, pronouns, created_at, rkey)
+                      VALUES (?,?,?,?,?,?,?,?)''',
+                      [ret['follower'],'','','','','','',ret['rkey']])
+            db.commit()
+            db.close()
+            count += 1
+          # a person has unfollowed. 
+          elif ret['op'] == 'delete':
+            db.execute('DELETE FROM follows WHERE rkey = (?)',
+                            [ret['rkey']])
+            db.commit()
+            db.close()
+        elif ret['path'].find(event_type) != -1 and 'app.bsky.graph.block' == event_type:
+          db = sqlite3.connect(db_path, check_same_thread=False)
+          db.row_factory = sqlite3.Row
+          db.execute('UPDATE follows SET blocked = (?) WHERE follower = (?) AND followee = (?)',
+                    ['true', ret['follower'], ret['followee']])
           db.commit()
           db.close()
-      elif ret['path'].find(event_type) != -1 and 'app.bsky.graph.block' == event_type:
+      # We stop when we have exceeded the desired limit
+      if count >= max_events:
+        print("Reached max events, stopping worker")
         db = sqlite3.connect(db_path, check_same_thread=False)
         db.row_factory = sqlite3.Row
-        db.execute('UPDATE follows SET blocked = (?) WHERE follower = (?) AND followee = (?)',
-                   ['true', ret['follower'], ret['followee']])
+        # Tell the system that the worker is done. 
+        db.execute('UPDATE worker_done SET value = (?) WHERE value == (?)', ['true', 'false'])
         db.commit()
         db.close()
-    # We stop when we have exceeded the desired limit
-    if count >= max_events:
-      print("Reached max events, stopping worker")
-      db = sqlite3.connect(db_path, check_same_thread=False)
-      db.row_factory = sqlite3.Row
-      # Tell the system that the worker is done. 
-      db.execute('UPDATE worker_done SET value = (?) WHERE value == (?)', ['true', 'false'])
-      db.commit()
-      db.close()
+        break
+    # If the connection was unexpectedly close, reset where left off.
+    if count < max_events:
+      cursor = isfailure
+    else:
       break
 
 async def parse(event):
