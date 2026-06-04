@@ -1,5 +1,6 @@
 import os, asyncio
-from flask import Flask, render_template, g, request, redirect, url_for, jsonify
+from flask import Flask, render_template, g, request, redirect, url_for, jsonify, session
+from flask_session import Session
 from sqlite3 import dbapi2 as sqlite3
 from logic import websocket as firehose 
 from logic import insertion
@@ -17,6 +18,11 @@ app.config.update(dict(
   SECRET_KEY=os.environ['SECRET_KEY'],
 ))
 app.config.from_envvar('HUM271_SETTINGS', silent=True)
+
+# configure session
+app.config['SESSION_PERMANENT'] = False
+app.config['SESSION_TYPE'] = 'filesystem'
+Session(app)
 
 def connect_db():
   """Connects to the specific database."""
@@ -85,11 +91,22 @@ def close_db(error):
         g.sqlite_db.close()
 
 
-"""Begin stream endpoints"""
+"""Bluesky stream endpoints"""
 
-@app.route('/start_jetstream_listener', methods=['GET'])
+
+@app.route('/bluesky_j_ctrl', methods=['POST'])
+def bluesky_j_ctrl():
+  """Enter the page with which the user selects more options
+  for jetstream control."""
+  # The user will have entered some data we would like to save for later.
+
+  return render_template('bluesky_j_ctrl')
+
+
+@app.route('/start_jetstream_listener', methods=['POST'])
 def start_jetstream_listener():
-  """Begin the jetstream for Bluesky. Then create the CSV for it. """
+  """Enter the final page where the user downloads the csv.
+  This activates the jetstream event listener."""
   # initialize the database
   init_db('jetstream')
   init_db('worker_done')
@@ -102,8 +119,11 @@ def start_jetstream_listener():
       event_type=request.args.get('pattern', 'post')
     )
   )
-  return render_template('bluesky_jetstream.html')
+  stream_files.get_jetstream_csv(db_path=app.config['DATABASE'])
+  return render_template('bluesky_j_final.html')
 
+
+# Auxiliary funcs 
 
 @app.route('/worker_status')
 def worker_status():
@@ -116,13 +136,7 @@ def worker_status():
   return jsonify({"done": worker_done})
 
 
-@app.route('/get_stream_csv', methods=['GET'])
-def get_stream_csv():
-  """Get the csv while in bluesky_jetstream."""
-  stream_files.get_jetstream_csv(db_path=app.config['DATABASE'])
-  return render_template('bluesky_jetstream.html')
-
-@app.route('/update_stream_db', methods=['POST'])
+@app.route('/bluesky_j_final/update_stream_db', methods=['POST'])
 def update_stream_db():
   """Update the db to reflect changes."""
   init_db('worker_done')
@@ -133,7 +147,9 @@ def update_stream_db():
       db_path=app.config['DATABASE'],
     )
   )
-  return render_template('bluesky_jetstream.html')
+  return render_template('bluesky_j_final.html')
+
+# End auxiliary funcs
 
 """End stream endpoints"""
 
@@ -144,43 +160,44 @@ def main():
   return render_template('main.html')
 
 
-"""Bluesky Paths."""
+"""Bluesky REST Paths."""
 
-
-@app.route('/bluesky', methods=['POST', 'GET'])
+@app.route('/bluesky', methods=['POST'])
 def bluesky():
-  """Open the route which uses the bluesky api.
-  - Here, we gather the info needed to create a CSV
-  - We also store the stuff in a SQLite database
-  """
-  if request.method == 'GET':
-    # Before we do anything, we need to reset.
-    # This means getting API responses and deleting the previous 
-    # request information.
-    init_db('bluesky')
-    init_db('worker_done')
-    # This is the REST API procedure.
-    # Control entering this statement implies the user
-    # selected the 'REST API' button.
-    insertion.clear_bsky(app.config['DATABASE'])
-    firehose.loop.call_soon_threadsafe(
-      asyncio.create_task,
-      insertion.bsky(app.config['DATABASE'])
-    )
-    return render_template('bluesky_rest.html')
+  """Open the first page of control for bluesky gathering. 
+  This is the branching point at which the user chooses between
+  jetstream and REST."""
   return render_template('bluesky.html')
 
 
-@app.route('/get_rest_csv', methods=['GET'])
-def get_rest_csv():
-  """Page in which, after a complete request, CSV download
-  is an option."""
+@app.route('bluesky_r_ctrl', methods=['POST'])
+def bluesky_r_ctrl():
+  """Page in which, after completing request info, 
+  user selects more options"""
+  return render_template('bluesky_r_ctrl.html')
+
+
+@app.route('/start_rest_requests', methods=['POST'])
+def start_rest_requests():
+  """Load the final page from which the user downloads their finished
+  csv. This activates the REST request maker.
+  """
+  # Before we do anything, we need to reset.
+  # This means getting API responses and deleting the previous 
+  # request information.
+  init_db('bluesky')
+  init_db('worker_done')
+  insertion.clear_bsky(app.config['DATABASE'])
+  firehose.loop.call_soon_threadsafe(
+    asyncio.create_task,
+    insertion.bsky(app.config['DATABASE'])
+  )
   db = get_db()
   files.get_bluesky_csv(db)
-  return render_template('bluesky_rest.html')
+  return render_template('bluesky_r_final.html')
 
 
-"""End Bluesky Paths."""
+"""End Bluesky REST Paths."""
 
 
 """Begin X Paths."""

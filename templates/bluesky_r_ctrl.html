@@ -128,65 +128,27 @@
         <!--Main-->
         <div class="container text-center">
           <div class="row">
-            <div class="col"></div>
-            <div class="col">
+            <div class="col-sm-6">
               <form action="{{url_for('main')}}" method="GET" class="nav-link link-body-emphasis">
                 <button type="submit" class="btn btn-secondary">Main</button>
               </form>
             </div>
-            <div class="col"></div>
+            <!--Back-->
+            <div class="col-sm-6">
+              <form action="{{url_for('bluesky')}}" method="POST" class="nav-link link-body-emphasis">
+                <button type="submit" class="nav-link">Back</button>
+              </form>
+            </div>
+            <!--End Back-->
           </div>
         </div>
         <!--End Main-->
         <ul class="nav nav-pills">
-          <!--Dropdown-->
+          <!--Control Features-->
           <li>
-            <p class="py-3">Enter the type of request you'd like.</p>
-            <!--Container-->
-            <div class="container text-center">
-              <div class="row">
-                <div class="col d-flex align-items-center">
-                  <div class="dropdown">
-                    <button class="dropdown-toggle btn btn-primary" 
-                      type="button" data-bs-toggle="dropdown"
-                      aria-expanded="false" role="button"
-                    >
-                      Choose Method
-                    </button>
-                    <ul class="dropdown-menu">
-                      <li><a class="dropdown-item" href="#" onclick="show_rest()">REST API</a></li>
-                      <li><a class="dropdown-item" href="#" onclick="show_jetstream()">Jetstream</a></li>
-                    </ul>
-                  </div>
-                </div>
-              </div>
-            </div>
-            <!--Container-->
+
           </li>
-          <!--End Dropdown-->
-          <!--REST API-->
-          <li id="rest">
-            <form action="{{url_for('bluesky_r_ctrl')}}"
-            method="GET"
-            class="nav-link link-body-emphasis"
-            name="form" value="rest"
-            >
-              Select Number of Responses 
-              <input type="text" name="bluesky_length" pattern="[0-9]{1,2}" required>
-              <button type="submit" class="nav-link">Submit</button>
-            </form>
-          </li>
-          <!--End REST API-->
-          <!--Jetstream-->
-          <li id="jetstream">
-            <form action="{{url_for('bluesky_j_ctrl')}}" method="GET" class="nav-link link-body-emphasis">
-              Select # Responses And Type
-              <input type="text" placeholder="# of responses" name="max_events" required pattern="[0-9]{1,8}">
-              <input type="text" placeholder="Type of response" name="pattern" required pattern="(post)|(follow)">
-              <button type="submit" class="nav-link">Submit</button>
-            </form>
-          </li>
-          <!--End Jetstream-->
+          <!--End Control Features-->
         </ul>
         <hr />
       </div>
