@@ -3,6 +3,7 @@ import requests, os
 from utils.utils import get_age
 from utils.classes import compound, FieldError
 from sqlite3 import dbapi2 as sqlite3
+from logic.csv import get_bluesky_csv 
 
 
 def clear_bsky(db_path):
@@ -121,6 +122,8 @@ async def bsky(db_path, bluesky_length=10):
                         str(actor)])
           db.commit()
   # Finally, we let the state know this operation is complete.
+  get_bluesky_csv(db)
+  print('Completed request, stopping worker')
   db.execute('UPDATE worker_done SET value = (?) WHERE value = (?)', ['true', 'false']) 
   db.commit()
   db.close()
