@@ -151,16 +151,13 @@
           <hr />
           <!--Download REST CSV-->
           <li id="rest-csv" style="content-visibility: hidden;">
-            <form action="{{url_for('get_rest_csv')}}" method="GET">
-              <a id="download-link"
-                href="../../csvfiles/bluesky.csv"
-                class="nav-link link-body-emphasis"
-                download hidden
-              >
-                Download REST CSV
-              </a>
-              <button class="nav-link" type="submit" onclick="click_link()">Download REST CSV</button>
-            </form>
+            <a id="download-link"
+              href="../../csvfiles/bluesky.csv"
+              class="nav-link link-body-emphasis"
+              download
+            >
+              Download REST CSV
+            </a>
           </li>
           <!--End Download REST CSV-->
         </ul>

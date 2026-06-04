@@ -4,10 +4,10 @@ visible = 'content-visibility: visible;';
 once the user completes certain actions.*/
 document.addEventListener('DOMContentLoaded', () => {
   //By default, the link is invisible. 
-  if (!localStorage.getItem('visibility_b')) {
-    localStorage.setItem('visibility_b', hidden);
+  if (!localStorage.getItem('visibility')) {
+    localStorage.setItem('visibility', hidden);
   }
-  document.querySelector('#csv').style = localStorage.getItem('visibility_b');
+  document.querySelector('#rest-csv').style = localStorage.getItem('visibility');
 });
 
 /*Here we define something that lets something activate only once the worker is
@@ -20,7 +20,6 @@ async function wait_for_worker() {
     const data = await res.json();
     if (data.done == 'true') { 
       document.querySelector('#rest-csv').style = visible;
-      document.querySelector('#success').style = visible;
       break;
     }
     await new Promise(r => setTimeout(r, 200));

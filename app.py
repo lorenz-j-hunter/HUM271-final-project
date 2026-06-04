@@ -99,11 +99,12 @@ def bluesky_j_ctrl():
   """Enter the page with which the user selects more options
   for jetstream control."""
   # The user will have entered some data we would like to save for later.
+  session['max_events'] = request.form['max_events']
+  session['type'] = request.form['pattern']
+  return render_template('bluesky_j_ctrl.html')
 
-  return render_template('bluesky_j_ctrl')
 
-
-@app.route('/start_jetstream_listener', methods=['POST'])
+@app.route('/start_jetstream_listener', methods=['GET'])
 def start_jetstream_listener():
   """Enter the final page where the user downloads the csv.
   This activates the jetstream event listener."""
@@ -115,8 +116,8 @@ def start_jetstream_listener():
     asyncio.create_task,
     firehose.jetstream_worker(
       db_path=app.config['DATABASE'],
-      max_events=int(request.args.get('max_events', '0')),
-      event_type=request.args.get('pattern', 'post')
+      max_events=int(session['max_events']),
+      event_type=session['type']
     )
   )
   stream_files.get_jetstream_csv(db_path=app.config['DATABASE'])
@@ -162,6 +163,7 @@ def main():
 
 """Bluesky REST Paths."""
 
+
 @app.route('/bluesky', methods=['POST'])
 def bluesky():
   """Open the first page of control for bluesky gathering. 
@@ -170,30 +172,27 @@ def bluesky():
   return render_template('bluesky.html')
 
 
-@app.route('bluesky_r_ctrl', methods=['POST'])
+@app.route('/bluesky_r_ctrl', methods=['POST'])
 def bluesky_r_ctrl():
   """Page in which, after completing request info, 
   user selects more options"""
+  # Store the request info for use later.
+  session['bluesky_length'] = request.form['bluesky_length']
   return render_template('bluesky_r_ctrl.html')
 
 
-@app.route('/start_rest_requests', methods=['POST'])
-def start_rest_requests():
+@app.route('/get_rest_requests', methods=['GET'])
+def get_rest_requests():
   """Load the final page from which the user downloads their finished
   csv. This activates the REST request maker.
   """
-  # Before we do anything, we need to reset.
-  # This means getting API responses and deleting the previous 
-  # request information.
   init_db('bluesky')
   init_db('worker_done')
+  # clear the bluesky rest database.
   insertion.clear_bsky(app.config['DATABASE'])
-  firehose.loop.call_soon_threadsafe(
-    asyncio.create_task,
-    insertion.bsky(app.config['DATABASE'])
+  firehose.run(
+    insertion.bsky(db_path=app.config['DATABASE'], bluesky_length=int(session['bluesky_length']))
   )
-  db = get_db()
-  files.get_bluesky_csv(db)
   return render_template('bluesky_r_final.html')
 
 

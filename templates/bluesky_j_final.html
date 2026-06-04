@@ -157,16 +157,13 @@
             >
               This is a success message
             </span>
-            <form action="{{url_for('get_stream_csv')}}" method="GET" onsubmit="click_link()">
-              <a id="download-link"
-                href="../../csvfiles/bsky-jetstream.csv"
-                class="nav-link link-body-emphasis"
-                download hidden
-              >
-                Download Stream CSV
-              </a>
-              <button class="nav-link" type="submit">Download Stream CSV</button>
-            </form>
+            <a id="download-link"
+              href="../../csvfiles/bsky-jetstream.csv"
+              class="nav-link link-body-emphasis"
+              download
+            >
+              Download Stream CSV
+            </a>
           </li>
           <!--End Download Stream CSV-->
           <!--Update Database-->
