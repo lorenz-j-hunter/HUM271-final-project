@@ -130,7 +130,12 @@ def start_jetstream_listener():
 def worker_status():
   """Activate a feature only once the jetstream worker is done."""
   db = get_db()
-  cur = db.execute('SELECT value FROM worker_done')
+  cur = None
+  while cur is None:
+    try:
+      cur = db.execute('SELECT value FROM worker_done')
+    except sqlite3.OperationalError:
+      continue # keep trying until database not locked.
   f = cur.fetchall()
   worker_done = [row[0] for row in f][0]
   db.close()

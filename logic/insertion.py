@@ -16,7 +16,7 @@ def clear_bsky(db_path):
   db.close()
 
 
-async def bsky(db_path, bluesky_length=10):
+async def bsky(db_path, bluesky_length=10, follows_limit=100, posts_limit=100, posts_query="a"):
   """Add response data to the Bluesky database table."""
   db = sqlite3.connect(db_path, check_same_thread=False)
   db.row_factory = sqlite3.Row
@@ -34,8 +34,6 @@ async def bsky(db_path, bluesky_length=10):
   # Key: Handle of the user in question
   # Value: List of handles of follows.
   all_follows: dict[str, list[str]] = {}
-  follows_limit: int = 100 # the max number of follows to get per user.
-  posts_limit: int = 100 # the max number of posts to get per user. 
   # Here, we traverse the thing by actor.
   # We separate actors' handles from the json first to do this.
   for e in actors['actors']:
@@ -45,7 +43,7 @@ async def bsky(db_path, bluesky_length=10):
     # It is stored in a dict; the DID of the user in question is
     # the key and the corresponding *list* of posts is the value.
     posts_params: dict[str, str | int] = {
-      "q" : "a",
+      "q" : posts_query,
       "author" : identifier,
       'limit' : posts_limit 
     }
@@ -121,8 +119,9 @@ async def bsky(db_path, bluesky_length=10):
                         p_insertion_list[e],
                         str(actor)])
           db.commit()
-  # Finally, we let the state know this operation is complete.
+  # Create the csv.
   get_bluesky_csv(db)
+  # Finally, we let the state know this operation is complete.
   print('Completed request, stopping worker')
   db.execute('UPDATE worker_done SET value = (?) WHERE value = (?)', ['true', 'false']) 
   db.commit()

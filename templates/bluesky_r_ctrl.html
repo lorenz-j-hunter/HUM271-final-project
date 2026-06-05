@@ -92,7 +92,7 @@
         display: block !important;
       }
     </style>
-    <script src="{{ url_for('static', filename='activate_b.js')}}"></script>
+    <script src="{{ url_for('static', filename='control_rest.js')}}"></script>
     <script src="{{ url_for('static', filename='parallax_bsky.js')}}"></script>
   </head>
   <body class="parallax-bsky" data-speed="0.1">
@@ -143,15 +143,38 @@
           </div>
         </div>
         <!--End Main-->
-        <ul class="nav nav-pills">
-          <!--Control Features-->
-          <li>
-            <form action="{{url_for('get_rest_requests')}}" method="GET">
-              <button type="submit" class="btn btn-primary">Continue</button>
-            </form>
-          </li>
-          <!--End Control Features-->
-        </ul>
+        <!--Control Features-->
+        <div class="container text-center">
+          <div class="row">
+            <div class="col">
+              <div class="dropdown">
+                <button class="dropdown-toggle btn btn-primary" 
+                  type="button" data-bs-toggle="dropdown"
+                  aria-expanded="false" role="button"
+                >
+                  Choose Limits
+                </button>
+                <ul class="dropdown-menu">
+                  <li><a class="dropdown-item" href="#" onclick="show_s()">Sample Size</a></li>
+                  <li style="content-visibility: hidden;" id="querystring"><a
+                      class="dropdown-item"
+                      href="#" onclick="show_posts()"
+                      >
+                        Querystring
+                      </a></li>
+                </ul>
+              </div>
+            </div>
+          </div>
+          <div class="row">
+            <div class="col">
+              <form action="{{url_for('get_rest_requests')}}" method="GET">
+                <button type="submit" class="btn btn-primary">Continue</button>
+              </form>
+            </div>
+          </div>
+        </div>
+        <!--End Control Features-->
         <hr />
       </div>
       <div class="b-example-divider b-example-vr"></div>
