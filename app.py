@@ -111,13 +111,18 @@ def start_jetstream_listener():
   # initialize the database
   init_db('jetstream')
   init_db('worker_done')
+  params = {
+    'max_events': int(session['max_events']),
+    'event_type': session['type'],
+    'mark_blocks': None if request.args.get('mark_blocks') == '' else request.args.get('mark_blocks'),
+    'querystring': None if request.args.get('querystring') == '' else request.args.get('querystring')
+  }
   # begin worker. 
   firehose.loop.call_soon_threadsafe(
     asyncio.create_task,
     firehose.jetstream_worker(
       db_path=app.config['DATABASE'],
-      max_events=int(session['max_events']),
-      event_type=session['type']
+      params=params
     )
   )
   stream_files.get_jetstream_csv(db_path=app.config['DATABASE'])

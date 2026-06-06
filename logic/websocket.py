@@ -42,11 +42,16 @@ async def jetstream_stream(cursor=None):
 
       yield data
 
-async def jetstream_worker(db_path, max_events, event_type):
+async def jetstream_worker(db_path, params={'max_events': 100, 'event_type': 'post'}):
   """Get from the stream."""
   # Here is something that lets you pause until worker is done.
   count = 0
   cursor = None
+  # unpack params.
+  max_events = params['max_events']
+  event_type = params['event_type']
+  mark_blocks = params['mark_blocks'] if params['mark_blocks'] else None
+  querystring = params['querystring'] if params['querystring'] else None
   # Any event that comes through must match the event type.
   if event_type == 'post':
     event_type = 'app.bsky.feed.post'
@@ -57,7 +62,7 @@ async def jetstream_worker(db_path, max_events, event_type):
   while True:
     isfailure = None
     async for event in jetstream_stream(cursor):
-      ret: dict = await parse(event)
+      ret: dict = await parse(event, params={'querystring': querystring})
       isfailure = event.get('cursor')
       # Only add successful messages.      
       if ret['status'] == 'success':
@@ -93,7 +98,7 @@ async def jetstream_worker(db_path, max_events, event_type):
                             [ret['rkey']])
             db.commit()
             db.close()
-        elif ret['path'].find(event_type) != -1 and 'app.bsky.graph.block' == event_type:
+        elif ret['path'].find('app.bsky.graph.block') != -1 and mark_blocks:
           db = sqlite3.connect(db_path, check_same_thread=False)
           db.row_factory = sqlite3.Row
           db.execute('UPDATE follows SET blocked = (?) WHERE follower = (?) AND followee = (?)',
@@ -116,9 +121,10 @@ async def jetstream_worker(db_path, max_events, event_type):
     else:
       break
 
-async def parse(event):
+async def parse(event, params={}):
   """Selectively add to the events list"""
   ret: dict = {}
+  querystring = params['querystring'] if params['querystring'] else None
   
   # The message may not be a commit.
   commit = event.get('commit')
@@ -141,6 +147,10 @@ async def parse(event):
     ret['author_id'] = event.get('did')
     ret['text'] = record.get('text')
     ret['created_at'] = record.get('createdAt')
+    # Filter by querystring.
+    if querystring:
+      if querystring not in ret['text']:
+        ret['status'] = 'failure'
 
   elif ret['path'].find('app.bsky.graph.follow') != -1:
     ret['followee'] = record.get('subject')
