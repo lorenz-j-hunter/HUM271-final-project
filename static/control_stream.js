@@ -13,21 +13,37 @@ document.addEventListener('DOMContentLoaded', () => {
   }
   //Only if the user has selected 'posts' on the page before
   //can the user choose a querystring.
+  //If they have, they can't select 'mark blocks'.
   if (localStorage.getItem('isposts') == 'true') {
     document.querySelector('#querystring').style = visible;
+    document.querySelector('#mark-blocks').style = hidden;
+  } else if (localStorage.getItem('isposts') == 'false') {
+    document.querySelector('#querystring').style = hidden;
+    document.querySelector('#mark-blocks').style = visible;
   }
 });
 
 function show_mark_blocks() {
-  if (localStorage.getItem('isposts') == 'true') {
+  //If the user has selected 'posts' on the page before, they can
+  //only see 'querystring'. And vice versa.
+  if (localStorage.getItem('isposts') == 'false') {
     document.querySelector('#show-mark-blocks').style = visible;
     document.querySelector('#show-querystring').style = hidden;
-  } else {
-    document.querySelector('#show-mark-blocks').style = visible;
+  } else if (localStorage.getItem('isposts') == 'true') {
+    document.querySelector('#show-mark-blocks').style = hidden;
+    document.querySelector('#show-querystring').style = visible;
   }
 }
 
 function show_querystring() {
-  document.querySelector('#show-mark-blocks').style = hidden;
-  document.querySelector('#show-querystring').style = visible;
+  //If the user has selected 'follows' on the page before, they can
+  //only see 'mark-blocks'. And vice versa.
+  if (localStorage.getItem('isposts') == 'false') {
+    //because we're in 'posts', this 'show-mark-blocks' will not show anyway..
+    document.querySelector('#show-mark-blocks').style = visible; //because we're in 'posts'
+    document.querySelector('#show-querystring').style = hidden;
+  } else if (localStorage.getItem('isposts') == 'true') {
+    document.querySelector('#show-mark-blocks').style = hidden;
+    document.querySelector('#show-querystring').style = visible;
+  }
 }
