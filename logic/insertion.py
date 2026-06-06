@@ -16,11 +16,17 @@ def clear_bsky(db_path):
   db.close()
 
 
-async def bsky(db_path, bluesky_length=10, follows_limit=100, posts_limit=100, posts_query="a"):
+async def bsky(db_path, params={'bluesky_length': 10, 'limit': 100, 'querystring': "a"}):
   """Add response data to the Bluesky database table."""
+  # unpack params
+  bluesky_length = params['bluesky_length']
+  follows_limit = params['limit']
+  posts_limit = params['limit']
+  posts_query = params['querystring']
+  # connect database
   db = sqlite3.connect(db_path, check_same_thread=False)
   db.row_factory = sqlite3.Row
-
+  # get requests
   actors: dict[str, list[dict[str, str]]] = get_bluesky(bluesky_length) 
   # Now we define some common variables. 
   # `identifiers` is a list of handles of users.

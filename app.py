@@ -94,13 +94,13 @@ def close_db(error):
 """Bluesky stream endpoints"""
 
 
-@app.route('/bluesky_j_ctrl', methods=['POST'])
+@app.route('/bluesky_j_ctrl', methods=['GET'])
 def bluesky_j_ctrl():
   """Enter the page with which the user selects more options
   for jetstream control."""
   # The user will have entered some data we would like to save for later.
-  session['max_events'] = request.form['max_events']
-  session['type'] = request.form['pattern']
+  session['max_events'] = request.args.get('max_events')
+  session['type'] = request.args.get('pattern')
   return render_template('bluesky_j_ctrl.html')
 
 
@@ -125,6 +125,7 @@ def start_jetstream_listener():
 
 
 # Auxiliary funcs 
+
 
 @app.route('/worker_status')
 def worker_status():
@@ -193,10 +194,19 @@ def get_rest_requests():
   """
   init_db('bluesky')
   init_db('worker_done')
+  # get params
+  params = {
+    'bluesky_length': int(session['bluesky_length']),
+    'querystring': request.args.get('querystring'),
+    'limit': request.args.get('limit')
+  }
   # clear the bluesky rest database.
   insertion.clear_bsky(app.config['DATABASE'])
   firehose.run(
-    insertion.bsky(db_path=app.config['DATABASE'], bluesky_length=int(session['bluesky_length']))
+    insertion.bsky(
+      db_path=app.config['DATABASE'],
+      params=params
+    )
   )
   return render_template('bluesky_r_final.html')
 

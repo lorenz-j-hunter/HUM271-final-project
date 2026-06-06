@@ -125,48 +125,55 @@
           <span class="fs-4">Bluesky</span>
         </a>
         <hr />
-        <!--Main-->
-        <div class="container text-center">
-          <div class="row">
+        <div class="container text-center p-3">
+          <h1 class="visually-hidden">Nav Panel</h1>
+          <div class="row gx-3">
             <div class="col-sm-6">
               <form action="{{url_for('main')}}" method="GET" class="nav-link link-body-emphasis">
                 <button type="submit" class="btn btn-secondary">Main</button>
               </form>
             </div>
-            <!--Back-->
             <div class="col-sm-6">
               <form action="{{url_for('bluesky')}}" method="POST" class="nav-link link-body-emphasis">
-                <button type="submit" class="nav-link">Back</button>
+                <button type="submit" class="btn btn-secondary">Back</button>
               </form>
             </div>
-            <!--End Back-->
           </div>
         </div>
-        <!--End Main-->
-        <!--Control Features-->
+        <h1 class="visually-hidden">Control Panel</h1>
         <div class="container text-center">
-          <div class="row">
+          <div class="row gx-3">
             <div class="col">
               <div class="dropdown">
+                <h1 class="visually-hidden">Dropdown</h1>
                 <button class="dropdown-toggle btn btn-primary" 
                   type="button" data-bs-toggle="dropdown"
                   aria-expanded="false" role="button"
                 >
-                  Choose Limits
+                  Choose Vars 
                 </button>
                 <ul class="dropdown-menu">
-                  <li><a class="dropdown-item" href="#" onclick="show_s()">Sample Size</a></li>
-                  <li style="content-visibility: hidden;" id="querystring"><a
-                      class="dropdown-item"
-                      href="#" onclick="show_posts()"
-                      >
-                        Querystring
-                      </a></li>
+                  <li><a class="dropdown-item" href="#" onclick="show_limit()">Sample Size</a></li>
+                  <li><a class="dropdown-item" href="#" onclick="show_querystring()">Querystring</a></li>
                 </ul>
               </div>
             </div>
           </div>
-          <div class="row">
+          <div class="row gx-3">
+            <h1 class="visually-hidden">Enter QueryString</h1>
+            <div class="col" style="content-visibility: hidden;" id="show-querystring">
+              <p class="p-6">Enter Querystring</p>
+              <input type="text" name="querystring"> 
+            </div>
+          </div>
+          <div class="row gx-3">
+            <h1 class="visually-hidden">Enter Limit</h1>
+            <div class="col" style="content-visibility: hidden;" id="show-limit">
+              <p class="p-6">Enter Limit</p>
+              <input type="text" name="limit" pattern="^[0-9]{1,2}$"> 
+            </div>
+          </div>
+          <div class="row gx-3">
             <div class="col">
               <form action="{{url_for('get_rest_requests')}}" method="GET">
                 <button type="submit" class="btn btn-primary">Continue</button>
@@ -174,7 +181,6 @@
             </div>
           </div>
         </div>
-        <!--End Control Features-->
         <hr />
       </div>
       <div class="b-example-divider b-example-vr"></div>
