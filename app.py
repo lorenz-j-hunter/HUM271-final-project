@@ -94,7 +94,7 @@ def close_db(error):
 """Bluesky stream endpoints"""
 
 
-@app.route('/bluesky_j_ctrl', methods=['GET'])
+@app.route('/bluesky_j_ctrl', methods=['GET', 'POST'])
 def bluesky_j_ctrl():
   """Enter the page with which the user selects more options
   for jetstream control."""
@@ -114,7 +114,7 @@ def start_jetstream_listener():
   params = {
     'max_events': int(session['max_events']),
     'event_type': session['type'],
-    'mark_blocks': None if request.args.get('mark_blocks') == '' else request.args.get('mark_blocks'),
+    'mark_blocks': None if request.args.get('mark_blocks') else request.args.get('mark_blocks'),
     'querystring': None if request.args.get('querystring') == '' else request.args.get('querystring')
   }
   # begin worker. 

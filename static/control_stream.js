@@ -8,7 +8,7 @@ document.addEventListener('DOMContentLoaded', () => {
   console.log(`pattern=${pattern}`);
   if (pattern == 'post') {
     localStorage.setItem('isposts', 'true');
-  } else {
+  } else if (pattern == 'false') {
     localStorage.setItem('isposts', 'false');
   }
   //Only if the user has selected 'posts' on the page before
@@ -17,9 +17,13 @@ document.addEventListener('DOMContentLoaded', () => {
   if (localStorage.getItem('isposts') == 'true') {
     document.querySelector('#querystring').style = visible;
     document.querySelector('#mark-blocks').style = hidden;
+    document.querySelector('#ctu-q-btn').style = visible;
+    document.querySelector('#ctu-mb-btn').style = hidden;
   } else if (localStorage.getItem('isposts') == 'false') {
     document.querySelector('#querystring').style = hidden;
     document.querySelector('#mark-blocks').style = visible;
+    document.querySelector('#ctu-q-btn').style = hidden;
+    document.querySelector('#ctu-mb-btn').style = visible;
   }
 });
 
@@ -40,7 +44,7 @@ function show_querystring() {
   //only see 'mark-blocks'. And vice versa.
   if (localStorage.getItem('isposts') == 'false') {
     //because we're in 'posts', this 'show-mark-blocks' will not show anyway..
-    document.querySelector('#show-mark-blocks').style = visible; //because we're in 'posts'
+    document.querySelector('#show-mark-blocks').style = visible; 
     document.querySelector('#show-querystring').style = hidden;
   } else if (localStorage.getItem('isposts') == 'true') {
     document.querySelector('#show-mark-blocks').style = hidden;

@@ -50,7 +50,7 @@ async def jetstream_worker(db_path, params={'max_events': 100, 'event_type': 'po
   # unpack params.
   max_events = params['max_events']
   event_type = params['event_type']
-  mark_blocks = params['mark_blocks'] if params['mark_blocks'] else None
+  mark_blocks = params['mark_blocks'] if params['mark_blocks'] == 'yes' else None
   querystring = params['querystring'] if params['querystring'] else None
   # Any event that comes through must match the event type.
   if event_type == 'post':

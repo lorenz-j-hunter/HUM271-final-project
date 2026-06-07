@@ -92,7 +92,7 @@
         display: block !important;
       }
     </style>
-    <script src="{{url_for('static', filename='activate_stream')}}"></script>
+    <script src="{{url_for('static', filename='activate_stream.js')}}"></script>
     <script src="{{url_for('static', filename='parallax_bsky.js')}}"></script>
   </head>
   <body class="parallax-bsky" data-speed="0.1">
@@ -168,7 +168,7 @@
           <!--End Download Stream CSV-->
           <!--Update Database-->
           <li>
-            <form action="{{url_for('bluesky_j_final/update_stream_db')}}" method="POST" onclick="dispatch_event()">
+            <form action="{{url_for('update_stream_db')}}" method="POST" onclick="dispatch_event()">
               <button class="nav-link" type="submit">Update Database</button>
             </form>
           </li>

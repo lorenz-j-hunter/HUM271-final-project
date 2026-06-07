@@ -173,21 +173,30 @@
             <h1 class="visually-hidden">Mark Blocks</h1>
             <div class="col" style="content-visibility: hidden;" id="show-mark-blocks">
               <p class="p-6">Mark?</p>
-              <input type="radio" name="mark-blocks"> 
+              <form action="{{url_for('start_jetstream_listener')}}" method="GET" id="continue-mb">
+                <fieldset>
+                  <input type="radio" name="mark-blocks" value="yes" /> Yes
+                </fieldset>
+              </form>
             </div>
           </div>
           <div class="row gx-3">
             <h1 class="visually-hidden">Enter querystring</h1>
             <div class="col" style="content-visibility: hidden;" id="show-querystring">
               <p class="p-6">Enter querystring</p>
-              <input type="text" name="querystring" pattern="^[0-9]{1,2}$"> 
+              <form action="{{url_for('start_jetstream_listener')}}" method="GET" id="continue-q">
+                <input type="text" name="querystring" pattern="^.{1,10}$" /> 
+              </form>
             </div>
           </div>
           <h1 class="visually-hidden">Continue</h1>
           <div class="row gx-3">
-            <form action="{{url_for('start_jetstream_listener')}}" method="GET">
-              <button type="submit" class="btn btn-primary">Continue</button>
-            </form>
+            <div id="ctu-mb-btn">
+              <button form="continue-mb" type="submit" class="btn btn-primary">Continue</button>
+            </div>
+            <div id="ctu-q-btn">
+              <button form="continue-q" type="submit" class="btn btn-primary">Continue</button>
+            </div>
           </div>
         </div>
         <hr />
