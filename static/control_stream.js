@@ -8,7 +8,7 @@ document.addEventListener('DOMContentLoaded', () => {
   console.log(`pattern=${pattern}`);
   if (pattern == 'post') {
     localStorage.setItem('isposts', 'true');
-  } else if (pattern == 'false') {
+  } else if (pattern == 'follow') {
     localStorage.setItem('isposts', 'false');
   }
   //Only if the user has selected 'posts' on the page before

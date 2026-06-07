@@ -142,23 +142,25 @@ async def parse(event, params={}):
   ret['status'] = 'success'
   ret['path'] = record.get('$type')
 
-  # We recognize two options in the whole: post and follow.
+  # if the desired type is a post.
   if ret['path'].find('app.bsky.feed.post') != -1:
     ret['author_id'] = event.get('did')
-    ret['text'] = record.get('text')
+    ret['text'] = 'title was none' if not record.get('text') else record.get('text')
     ret['created_at'] = record.get('createdAt')
-    # Filter by querystring.
     if querystring:
-      if querystring not in ret['text']:
+      # if querystring is not in title text
+      if ret['text'].find(querystring) != -1:
+        ret = {}
         ret['status'] = 'failure'
-
+        return ret
+  # if the desired type is a follow
   elif ret['path'].find('app.bsky.graph.follow') != -1:
     ret['followee'] = record.get('subject')
     ret['follower'] = event.get('did')
     ret['created_at'] = record.get('createdAt')
     ret['op'] = commit.get('operation')
     ret['rkey'] = commit.get('rkey')
-
+  # if the desired type if a block.
   elif ret['path'].find('app.bsky.graph.block') != -1:
     ret['followee'] = record.get('subject')
     ret['follower'] = event.get('did')

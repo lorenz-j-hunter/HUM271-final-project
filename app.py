@@ -1,6 +1,5 @@
 import os, asyncio
-from flask import Flask, render_template, g, request, redirect, url_for, jsonify, session
-from flask_session import Session
+from flask import Flask, render_template, g, request, redirect, url_for, jsonify
 from sqlite3 import dbapi2 as sqlite3
 from logic import websocket as firehose 
 from logic import insertion
@@ -19,10 +18,6 @@ app.config.update(dict(
 ))
 app.config.from_envvar('HUM271_SETTINGS', silent=True)
 
-# configure session
-app.config['SESSION_PERMANENT'] = False
-app.config['SESSION_TYPE'] = 'filesystem'
-Session(app)
 
 def connect_db():
   """Connects to the specific database."""
@@ -35,36 +30,19 @@ def init_db(database='all'):
   """Initializes the database."""
   # check to see if arguments are valid.
   options: list[str] = ['all', 'bluesky', 'x', 'pornhub', 'jetstream', 'worker_done',
-                        'list_of_stars']
+                        'list_of_stars', 'args']
   if database not in options:
     raise TypeError('init_db() argument not in list of options.')
   # Selectively initialize the database.
   db = get_db()
   if database == 'all':
-    with app.open_resource('database/bluesky.sql', mode='r') as f:
+    options.remove('all')
+    for option in options:
+      with app.open_resource(f'database/{option}.sql', mode='r') as f:
+        db.cursor().executescript(f.read())
+  else:
+    with app.open_resource(f'database/{database}.sql', mode='r') as f:
       db.cursor().executescript(f.read())
-    with app.open_resource('database/x.sql', mode='r') as f:
-      db.cursor().executescript(f.read()) 
-    with app.open_resource('database/pornhub.sql', mode='r') as f:
-      db.cursor().executescript(f.read()) 
-  elif database == 'bluesky':
-    with app.open_resource('database/bluesky.sql', mode='r') as f:
-      db.cursor().executescript(f.read())
-  elif database == 'x':
-    with app.open_resource('database/x.sql', mode='r') as f:
-      db.cursor().executescript(f.read()) 
-  elif database == 'pornhub':
-    with app.open_resource('database/pornhub.sql', mode='r') as f:
-      db.cursor().executescript(f.read()) 
-  elif database == 'jetstream':
-    with app.open_resource('database/jetstream.sql', mode='r') as f:
-      db.cursor().executescript(f.read()) 
-  elif database == 'worker_done':
-    with app.open_resource('database/worker_done.sql', mode='r') as f:
-      db.cursor().executescript(f.read()) 
-  elif database == 'list_of_stars':
-    with app.open_resource('database/list_of_stars.sql', mode='r') as f:
-      db.cursor().executescript(f.read()) 
   db.commit()
 
 
@@ -84,6 +62,15 @@ def get_db():
     return g.sqlite_db
 
 
+def isempty() -> bool:
+  """Determine if table 'args' is empty"""
+  db = get_db()
+  f = db.execute('SELECT * FROM args').fetchall()
+  if len(f) < 1:
+    return True
+  return False
+
+
 @app.teardown_appcontext
 def close_db(error):
     """Closes the database again at the end of the request."""
@@ -99,8 +86,13 @@ def bluesky_j_ctrl():
   """Enter the page with which the user selects more options
   for jetstream control."""
   # The user will have entered some data we would like to save for later.
-  session['max_events'] = request.args.get('max_events')
-  session['type'] = request.args.get('pattern')
+  db = get_db()
+  if isempty():
+    db.execute('INSERT INTO args (bluesky_length, querystring, max_events, type, mark_blocks) VALUES (?,?,?,?,?)',
+              ['null', 'null', request.args.get('max_events'), request.args.get('pattern'), 'null'])
+  # if we are coming backward, we do not have request data. Hence isempty().
+  db.commit()
+  db.close()
   return render_template('bluesky_j_ctrl.html')
 
 
@@ -111,9 +103,17 @@ def start_jetstream_listener():
   # initialize the database
   init_db('jetstream')
   init_db('worker_done')
+  print(f'request.args.get(\'mark-blocks\')={request.args.get('mark-blocks')}')
+  print(f'request.args.get(\'querystring\')={request.args.get('querystring')}')
+  # Extract the data user entered from page before.
+  db = get_db()
+  f = db.execute('SELECT max_events, type FROM args').fetchall() # there's only ever one row in this db.
+  db.close()
+  max_events = [row[0] for row in f][0]
+  type = [row[1] for row in f][0]
   params = {
-    'max_events': int(session['max_events']),
-    'event_type': session['type'],
+    'max_events': int(max_events),
+    'event_type': type,
     'mark_blocks': None if request.args.get('mark_blocks') else request.args.get('mark_blocks'),
     'querystring': None if request.args.get('querystring') == '' else request.args.get('querystring')
   }
@@ -180,6 +180,8 @@ def bluesky():
   """Open the first page of control for bluesky gathering. 
   This is the branching point at which the user chooses between
   jetstream and REST."""
+  # clear store
+  init_db('args')
   return render_template('bluesky.html')
 
 
@@ -188,7 +190,13 @@ def bluesky_r_ctrl():
   """Page in which, after completing request info, 
   user selects more options"""
   # Store the request info for use later.
-  session['bluesky_length'] = request.form['bluesky_length']
+  db = get_db()
+  if isempty():
+    db.execute('INSERT INTO args (bluesky_length, querystring, max_events, type, mark_blocks) VALUES (?,?,?,?,?)',
+              [request.form['bluesky_length'], 'null', 'null', 'null', 'null'])
+  # if we are coming backward, we don't have request.form['bluesky_length'].
+  db.commit()
+  db.close()
   return render_template('bluesky_r_ctrl.html')
 
 
@@ -199,9 +207,14 @@ def get_rest_requests():
   """
   init_db('bluesky')
   init_db('worker_done')
+  # get the value user entered before
+  db = get_db()
+  f = db.execute('SELECT bluesky_length FROM args').fetchall()
+  bluesky_length = [row[0] for row in f][0]
+  db.close()
   # get params
   params = {
-    'bluesky_length': int(session['bluesky_length']),
+    'bluesky_length': int(bluesky_length),
     'querystring': request.args.get('querystring'),
     'limit': request.args.get('limit')
   }
@@ -247,6 +260,7 @@ def x():
 
 
 """Begin Pornhub Paths."""
+
 
 @app.route('/pornhub', methods=['POST', 'GET'])
 def pornhub():
