@@ -125,7 +125,6 @@ def start_jetstream_listener():
       params=params
     )
   )
-  stream_files.get_jetstream_csv(db_path=app.config['DATABASE'])
   return render_template('bluesky_j_final.html')
 
 

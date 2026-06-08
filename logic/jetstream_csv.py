@@ -1,6 +1,6 @@
-from flask import render_template
 from sqlite3 import dbapi2 as sqlite3
 import csv, os
+from utils.utils import remove
 
 def get_jetstream_csv(db_path):
   """Populate the csv file for the jetstream"""
@@ -19,6 +19,10 @@ def get_jetstream_csv(db_path):
     author_ids: list[str] = [row[0] for row in f]
     text: list[str] = [row[1] for row in f]
     created_at: list[str] = [row[2] for row in f]
+    # remove escaped characters for bug-free rendering
+    for string in text:
+      if '\n' in string:
+        string = remove(string, '\n')
     # aggregate into 'posts'
     for i in range(len(author_ids)): # can be any of the columns
       line.append(dict({
@@ -56,4 +60,3 @@ def get_jetstream_csv(db_path):
       writer.writeheader()
       for follow in line:
         writer.writerow(follow)
-  return render_template('bluesky.html')

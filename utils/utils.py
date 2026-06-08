@@ -47,3 +47,22 @@ def tagify(tags: list[str]) -> str:
   ret = encase(ret, '[]')
   ret = encase(ret, '"')
   return ret 
+
+def remove(target: str, sub: str) -> str | None:
+  """Return a version of `target` which has the first occurence of the
+  substring `sub` removed. Return None if sub not in target."""
+  if sub not in target:
+    return None
+  i = 0
+  max = len(sub)
+  ret = '' # target without `sub`
+  j = False
+  for char in target: 
+    if char == sub[i] and j == False:
+      i += 1
+    else:
+      ret = ret + char
+      i = 0 
+    if i == max:
+      j = True
+  return ret

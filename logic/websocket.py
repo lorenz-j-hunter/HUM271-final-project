@@ -1,6 +1,7 @@
 import asyncio, threading, websockets, json
 from sqlite3 import dbapi2 as sqlite3
 from logic import backfill as rest_update
+from logic import jetstream_csv as stream_files
 
 """Open a Websocket connection for Blyesky with bluesky firehose"""
 
@@ -112,6 +113,7 @@ async def jetstream_worker(db_path, params={'max_events': 100, 'event_type': 'po
         db.row_factory = sqlite3.Row
         # Tell the system that the worker is done. 
         db.execute('UPDATE worker_done SET value = (?) WHERE value == (?)', ['true', 'false'])
+        stream_files.get_jetstream_csv(db_path=db_path)
         db.commit()
         db.close()
         break
