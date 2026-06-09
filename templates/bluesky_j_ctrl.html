@@ -165,6 +165,13 @@
                       id="querystring"
                       >
                         Querystring</a></li>
+                  <li><a
+                      style="content-visibility: hidden;"
+                      class="dropdown-item" href="#"
+                      onclick="show_columns()"
+                      id="querystring"
+                      >
+                        Columns</a></li>         
                 </ul>
               </div>
             </div>
@@ -173,7 +180,7 @@
             <h1 class="visually-hidden">Mark Blocks</h1>
             <div class="col" style="content-visibility: hidden;" id="show-mark-blocks">
               <p class="p-6">Mark?</p>
-              <form action="{{url_for('start_jetstream_listener')}}" method="GET" id="continue-mb">
+              <form action="{{url_for('start_jetstream_listener')}}" method="GET" id="continue-mb" class="submitAll">
                 <fieldset>
                   <input type="radio" name="mark-blocks" value="yes" /> Yes
                 </fieldset>
@@ -184,7 +191,7 @@
             <h1 class="visually-hidden">Enter querystring</h1>
             <div class="col" style="content-visibility: hidden;" id="show-querystring">
               <p class="p-6">Enter querystring</p>
-              <form action="{{url_for('start_jetstream_listener')}}" method="GET" id="continue-q">
+              <form action="{{url_for('start_jetstream_listener')}}" method="GET" id="continue-q" class="submitAll">
                 <input type="text" name="querystring" pattern="^.{1,10}$" /> 
               </form>
             </div>

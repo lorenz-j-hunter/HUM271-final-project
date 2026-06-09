@@ -184,7 +184,7 @@ def bluesky():
   return render_template('bluesky.html')
 
 
-@app.route('/bluesky_r_ctrl', methods=['POST'])
+@app.route('/bluesky_r_ctrl', methods=['POST', 'GET'])
 def bluesky_r_ctrl():
   """Page in which, after completing request info, 
   user selects more options"""
@@ -199,7 +199,7 @@ def bluesky_r_ctrl():
   return render_template('bluesky_r_ctrl.html')
 
 
-@app.route('/get_rest_requests', methods=['GET'])
+@app.route('/get_rest_requests', methods=['GET', 'POST'])
 def get_rest_requests():
   """Load the final page from which the user downloads their finished
   csv. This activates the REST request maker.
@@ -214,8 +214,13 @@ def get_rest_requests():
   # get params
   params = {
     'bluesky_length': int(bluesky_length),
-    'querystring': request.args.get('querystring'),
-    'limit': request.args.get('limit')
+    'querystring': None if request.args.get('querystring') == '' else request.args.get('querystring'),
+    'limit': request.args.get('limit'),
+    'columns': {
+      'did': None if request.args.get('did') == '' else request.args.get('did'),
+      'age': None if request.args.get('age') == '' else request.args.get('age'),
+      'pronouns': None if request.args.get('pronouns') == '' else request.args.get('pronouns')
+    }
   }
   # clear the bluesky rest database.
   insertion.clear_bsky(app.config['DATABASE'])
