@@ -1,14 +1,33 @@
 hidden = 'content-visibility: hidden;';
 visible = 'content-visibility: visible;';
 
-/*Show the user the querystring entry.*/
-function show_querystring() {
-  document.querySelector('#show-querystring').style = visible;
-  document.querySelector('#show-limit').style = hidden; 
+/*Show the user the form that they chose.*/
+function show(arg) {
+  document.querySelectorAll('.show').forEach(form => {
+    /*if thing has 'arg' then show it, else don't*/
+    console.log(`form=${form}. form.id=${form.id}.`);
+    if (form.id == arg) {
+      form.style = visible;
+    } else {
+      form.style = hidden;
+    }
+  });
 }
 
-/*Show the user the sample size entry.*/
-function show_limit() {
-  document.querySelector('#show-querystring').style = hidden;
-  document.querySelector('#show-limit').style = visible; 
-}
+/*Submit all data from each form at once*/
+var btn = null 
+document.addEventListener('DOMContentLoaded', () => {
+  btn = document.querySelector('#ctu');
+  btn.addEventListener("click", () => {
+    const forms = document.querySelectorAll('.forms');
+    const data = new FormData();
+
+    forms.forEach(form => {
+      new FormData(form).forEach((value, key) => {
+        data.append(key, value);
+      });
+    });
+
+    localStorage.setItem('data', data);
+  });
+});

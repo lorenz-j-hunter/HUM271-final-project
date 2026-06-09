@@ -141,7 +141,7 @@
           </div>
         </div>
         <h1 class="visually-hidden">Control Panel</h1>
-        <div class="container text-center">
+        <div class="container text-center p-3">
           <div class="row gx-3">
             <div class="col">
               <div class="dropdown">
@@ -153,30 +153,48 @@
                   Choose Vars 
                 </button>
                 <ul class="dropdown-menu">
-                  <li><a class="dropdown-item" href="#" onclick="show_limit()">Sample Size</a></li>
-                  <li><a class="dropdown-item" href="#" onclick="show_querystring()">Querystring</a></li>
+                  <li><a class="dropdown-item" href="#" onclick="show('q_form')">Querystring</a></li>
+                  <li><a class="dropdown-item" href="#" onclick="show('cc_form')">Choose Columns</a></li>
+                  <li><a class="dropdown-item" href="#" onclick="show('lim_form')">Choose limit</a></li>
                 </ul>
               </div>
             </div>
           </div>
           <div class="row gx-3">
             <h1 class="visually-hidden">Enter QueryString</h1>
-            <div class="col" style="content-visibility: hidden;" id="show-querystring">
+            <div class="col" style="content-visibility: hidden;" class="show" id="q_form">
               <p class="p-6">Enter Querystring</p>
-              <input type="text" name="querystring"> 
+              <form class="forms">
+                <input type="text" name="querystring"> 
+              </form>
             </div>
           </div>
           <div class="row gx-3">
             <h1 class="visually-hidden">Enter Limit</h1>
-            <div class="col" style="content-visibility: hidden;" id="show-limit">
+            <div class="col" style="content-visibility: hidden;" class="show" id="lim_form">
               <p class="p-6">Enter Limit</p>
-              <input type="text" name="limit" pattern="^[0-9]{1,2}$"> 
+              <form class="forms">
+                <input type="text" name="limit" pattern="^[0-9]{1,2}$"> 
+              </form>
+            </div>
+          </div>
+          <div class="row gx-3">
+            <h1 class="visually-hidden">Choose Columns</h1>
+            <div class="col" style="content-visibility: hidden;" class="show" id="cc_form">
+              <p class="p-6">Choose Columns</p>
+              <form class="forms">
+                <fieldset>
+                  <input type="radio" name="did" value="yes" /> did
+                  <input type="radio" name="age" value="yes" /> age in months
+                  <input type="radio" name="pronouns" value="yes" /> pronouns
+                </fieldset>
+              </form> 
             </div>
           </div>
           <div class="row gx-3">
             <div class="col">
               <form action="{{url_for('get_rest_requests')}}" method="GET">
-                <button type="submit" class="btn btn-primary">Continue</button>
+                <button id="ctu" type="submit" class="btn btn-primary">Continue</button>
               </form>
             </div>
           </div>
