@@ -224,7 +224,8 @@ def get_rest_requests():
   }
   # clear the bluesky rest database.
   insertion.clear_bsky(app.config['DATABASE'])
-  firehose.run(
+  firehose.loop.call_soon_threadsafe(
+    asyncio.create_task,
     insertion.bsky(
       db_path=app.config['DATABASE'],
       params=params

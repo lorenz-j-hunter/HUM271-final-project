@@ -11,16 +11,9 @@ def loop_runner():
   asyncio.set_event_loop(loop)
   loop.run_forever()
 
-
 def backfill(db_path):
   """A wrapper for running a single event on a background loop."""
   asyncio.run_coroutine_threadsafe(rest_update.backfill(db_path), loop)
-
-
-def run(func):
-  """A wrapper for running a single event of your choosing."""
-  asyncio.run_coroutine_threadsafe(func, loop) 
-
 
 threading.Thread(target=loop_runner, daemon=True).start()
 

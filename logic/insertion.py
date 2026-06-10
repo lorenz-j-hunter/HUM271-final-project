@@ -4,6 +4,7 @@ from utils.utils import get_age
 from utils.classes import compound, FieldError
 from sqlite3 import dbapi2 as sqlite3
 from logic.csv import get_bluesky_csv 
+from logic.websocket import loop
 
 
 def clear_bsky(db_path):
@@ -19,10 +20,10 @@ def clear_bsky(db_path):
 async def bsky(db_path, params={'bluesky_length': 10, 'limit': 100, 'querystring': "a"}):
   """Add response data to the Bluesky database table."""
   # unpack params
-  bluesky_length = params['bluesky_length']
-  follows_limit = params['limit']
-  posts_limit = params['limit']
-  posts_query = params['querystring']
+  bluesky_length = params['bluesky_length'] + 1
+  follows_limit = 100 if not params['limit'] else params['limit']
+  posts_limit = 100 if not params['limit'] else params['limit']
+  posts_query = "a" if not params['querystring'] else params['querystring']
   # connect database
   db = sqlite3.connect(db_path, check_same_thread=False)
   db.row_factory = sqlite3.Row
@@ -60,11 +61,14 @@ async def bsky(db_path, params={'bluesky_length': 10, 'limit': 100, 'querystring
       all_posts[identifier] = []
       all_follows[identifier] = []
       continue 
-    posts_limit = len(post_response.json().get('posts'))
     insertion_list: list[str] = []
     for i in range(posts_limit):
+      print(f'Are we here yet? (line 66)')
       # insert a post uri.
-      insertion_list.append(post_response.json().get('posts')[i].get('uri'))
+      try:
+        insertion_list.append(post_response.json().get('posts')[i].get('uri'))
+      except:
+        break
     all_posts[identifier] = insertion_list
     # Now here we gather all follow data of the user in question.
     # These are inserted into a dictionary called 'all_follows', which
@@ -78,11 +82,14 @@ async def bsky(db_path, params={'bluesky_length': 10, 'limit': 100, 'querystring
       follows_endpoint, follows_params  
     )
     if follows_response: # Sometimes, follows_response is None. 
-      follows_limit = len(follows_response.json().get('follows'))
       # insert the user ID of the follow.
       insertion_list: list[str] = []
       for i in range(follows_limit):
-        insertion_list.append(follows_response.json().get('follows')[i].get('did'))
+        print(f'Are we here yet? (line 88)')
+        try:
+          insertion_list.append(follows_response.json().get('follows')[i].get('did'))
+        except:
+          break
       all_follows[identifier] = insertion_list 
     else: # In this case, we still have to fill all_follows with something.
       all_follows[identifier] = [] 
@@ -132,6 +139,7 @@ async def bsky(db_path, params={'bluesky_length': 10, 'limit': 100, 'querystring
   db.execute('UPDATE worker_done SET value = (?) WHERE value = (?)', ['true', 'false']) 
   db.commit()
   db.close()
+  loop.stop()
 
 def x(db, x_length=10):
   """Add response data to the X database table."""
