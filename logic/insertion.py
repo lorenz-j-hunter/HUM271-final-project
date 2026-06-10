@@ -111,26 +111,36 @@ async def bsky(db_path, params={'bluesky_length': 10, 'limit': 100, 'querystring
     for _ in range(follows_limit):
       f_insertion_list: list[str] = all_follows[identifiers[actor]]
       for e in range(len(f_insertion_list)):
+        print('\tinsert into second_dim (follows, line 114)')
         db.execute('INSERT INTO second_dim_for_bluesky (follows, posts, item_id) VALUES (?, ?, ?)',
                   [f_insertion_list[e],
                     'None',
-                    str(actor)]) 
+                    str(actor)])
         db.commit()
     for _ in range(posts_limit):
       f_insertion_list_len: int = len(all_follows[identifiers[actor]])
       p_insertion_list: list[str] = all_posts[identifiers[actor]]
-      # We first update what has already been inserted.
-      for e in range(f_insertion_list_len):
-        db.execute('UPDATE second_dim_for_bluesky SET posts = (?) WHERE item_id == (?)',
-                    [p_insertion_list[e], e])
-        db.commit()
-      # Then, we continue to insert if there are more posts than follows. 
-      if len(p_insertion_list) > f_insertion_list_len:
-        for e in range(f_insertion_list_len, len(p_insertion_list)):
+      p_insertion_list_len: int = len(p_insertion_list)
+      # If there are more follows than posts, there is a case for that. 
+      # likewise for posts > follows.
+      if p_insertion_list_len > f_insertion_list_len:
+        for e in range(f_insertion_list_len):
+          print('\tupdate second_dim (follows, line 128) (f < p)')
+          db.execute('UPDATE second_dim_for_bluesky SET posts = (?) WHERE item_id == (?)',
+                      [p_insertion_list[e], e])
+          db.commit()
+        for e in range(len(p_insertion_list) - f_insertion_list_len):
+          print('\tinsert into second_dim (follows, line 132)')
           db.execute('INSERT INTO second_dim_for_bluesky (follows, posts, item_id) VALUES (?, ?, ?)',
                       ['None',
                         p_insertion_list[e],
                         str(actor)])
+          db.commit()
+      elif f_insertion_list_len > p_insertion_list_len | f_insertion_list_len == p_insertion_list_len:
+        for e in range(p_insertion_list_len):
+          print('\tupdate second_dim (follows, line 141) (f > p | f == p)')
+          db.execute('UPDATE second_dim_for_bluesky SET posts = (?) WHERE item_id == (?)',
+                      [p_insertion_list[e], e])
           db.commit()
   # Create the csv.
   get_bluesky_csv(db)

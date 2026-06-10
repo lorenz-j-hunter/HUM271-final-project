@@ -127,26 +127,21 @@
         <hr />
         <ul class="nav nav-pills flex-column mb-auto">
           <li class="nav-item">
-            <!--Container-->
+            <h1 class="visually-hidden">Nav Panel</h1>
             <div class="container">
               <div class="row">
-                <!--Main-->
                 <div class="col-sm-6">
                   <form action="{{url_for('main')}}" method="GET" class="nav-link link-body-emphasis">
                     <button type="submit" class="nav-link">Main</button>
                   </form>
                 </div>
-                <!--End Main-->
-                <!--Back-->
                 <div class="col-sm-6">
                   <form action="{{url_for('bluesky_r_ctrl')}}" method="POST" class="nav-link link-body-emphasis">
                     <button type="submit" class="nav-link">Back</button>
                   </form>
                 </div>
-                <!--End Back-->
               </div>
             </div>
-            <!--End container-->
           </li>
           <hr />
           <!--Download REST CSV-->
