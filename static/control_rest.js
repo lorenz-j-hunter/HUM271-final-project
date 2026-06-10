@@ -2,16 +2,34 @@ hidden = 'content-visibility: hidden;';
 visible = 'content-visibility: visible;';
 
 /*Show the user the form that they chose.*/
+/*
 function show(arg) {
   document.querySelectorAll('.show').forEach(form => {
-    /*if thing has 'arg' then show it, else don't*/
-    console.log(`form=${form}. form.id=${form.id}.`);
     if (form.id == arg) {
       form.style = visible;
     } else {
       form.style = hidden;
     }
   });
+}
+*/
+
+function show_q_form() {
+  document.querySelector('#q_form').style = visible;
+  document.querySelector('#lim_form').style = hidden;
+  document.querySelector('#cc_form').style = hidden;
+}
+
+function show_lim_form() {
+  document.querySelector('#q_form').style = hidden;
+  document.querySelector('#lim_form').style = visible;
+  document.querySelector('#cc_form').style = hidden;
+}
+
+function show_cc_form() {
+  document.querySelector('#q_form').style = hidden;
+  document.querySelector('#lim_form').style = hidden;
+  document.querySelector('#cc_form').style = visible;
 }
 
 /*Submit all data from each form at once*/
