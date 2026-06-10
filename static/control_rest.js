@@ -37,6 +37,7 @@ var btn = null
 document.addEventListener('DOMContentLoaded', () => {
   btn = document.querySelector('#ctu');
   btn.addEventListener("click", () => {
+    console.log('button clicked');
     const forms = document.querySelectorAll('.forms');
     const data = new FormData();
 
@@ -45,7 +46,15 @@ document.addEventListener('DOMContentLoaded', () => {
         data.append(key, value);
       });
     });
-
-    localStorage.setItem('data', data);
+    
+    const params = new URLSearchParams(data);
+    fetch(`/get_rest_requests?data=${params}`, {
+      method: "GET",
+    }).then(response => response.text())
+    .then(html => {
+      document.open(html);
+      document.write(html);
+      document.close(html);
+    });
   });
 });

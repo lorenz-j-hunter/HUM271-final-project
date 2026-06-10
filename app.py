@@ -215,13 +215,16 @@ def get_rest_requests():
   params = {
     'bluesky_length': int(bluesky_length),
     'querystring': None if request.args.get('querystring') == '' else request.args.get('querystring'),
-    'limit': request.args.get('limit'),
+    'limit': None if request.args.get('limit') == '' else request.args.get('limit'),
     'columns': {
       'did': None if request.args.get('did') == '' else request.args.get('did'),
       'age': None if request.args.get('age') == '' else request.args.get('age'),
       'pronouns': None if request.args.get('pronouns') == '' else request.args.get('pronouns')
     }
   }
+  print(f'params[\'columns\'].get(\'did\')={params['columns'].get('did')}')
+  print(f'params[\'columns\'].get(\'age\')={params['columns'].get('age')}')
+  print(f'params[\'columns\'].get(\'pronouns\')={params['columns'].get('pronouns')}')
   # clear the bluesky rest database.
   insertion.clear_bsky(app.config['DATABASE'])
   firehose.loop.call_soon_threadsafe(

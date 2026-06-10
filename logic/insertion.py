@@ -95,7 +95,7 @@ async def bsky(db_path, params={'bluesky_length': 10, 'limit': 100, 'querystring
       all_follows[identifier] = [] 
   # Finally, we add these columns to a database.
   # We first insert to the first dimension here, then move onto the second dimension.
-  for actor in range(bluesky_length): # assume all of these lists are the same length
+  for actor in range(bluesky_length): 
     # the age in months must be computed from the real response data.
     age_months: int = get_age(actors['actors'][actor].get('createdAt', 'None'))
     db.execute('INSERT INTO first_dim_for_bluesky (name, did, age_months, pronouns) VALUES (?, ?, ?, ?)',
@@ -107,7 +107,6 @@ async def bsky(db_path, params={'bluesky_length': 10, 'limit': 100, 'querystring
     # Now we add to the second dimension for follows and posts. 
     # First we insert into both columns for follows. Then, we update the rows
     # that have been filled with posts.
-    # Finally, to cover all cases, we may insert after that, too.
     for _ in range(follows_limit):
       f_insertion_list: list[str] = all_follows[identifiers[actor]]
       for e in range(len(f_insertion_list)):
