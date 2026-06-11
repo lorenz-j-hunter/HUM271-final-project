@@ -68,7 +68,7 @@ def remove(target: str, sub: str) -> str | None:
   return ret
 
 
-def choose_field_names(columns: dict[str,str]) -> list[str]:
+def choose_rest_field_names(columns: dict[str,str]) -> list[str]:
   """In the context of `get_bluesky_csv`, create a
   list of custom fieldnames."""
   ret: list[str] = ['name']
@@ -81,16 +81,38 @@ def choose_field_names(columns: dict[str,str]) -> list[str]:
   return ret 
 
 
-def choose_dict(arg: dict, choice: dict) -> dict[str,list[str]]:
+def choose_stream_field_names(columns: dict[str,str | None]) -> list[str]:
+  """In the context of `get_stream_csv`, create a list
+  of custom fieldnames"""
+  ret: list[str] = ['follower', 'followee', 'created_at']
+  if columns['mark_blocks']:
+    ret.append('mark_blocks')
+  return ret
+
+
+def choose_bsky_dict(arg: dict, choice: dict) -> dict[str, list[str]]:
   """In the context of `get_bluesky_csv()`, 
   create a dict according to custom columns"""
-  ret: dict = {
-    'name': arg['name'],
-    'follows': arg['follows'], 
-    'posts': arg['posts']
+  ret: dict[str, list[str]] = {
+    'name': [arg['name']],
+    'follows': [arg['follows']], 
+    'posts': [arg['posts']]
   }
   if choice['age'] == 'yes':
-    ret['age'] = arg['age']
+    ret['age'] = [arg['age']]
   if choice['pronouns'] == 'yes':
-    ret['pronouns'] = arg['pronouns']
+    ret['pronouns'] = [arg['pronouns']]
   return ret 
+
+
+def choose_stream_dict(arg: dict, choice: dict) -> dict[str,str]:
+  """In the context of `get_stream_csv()`, 
+  create a dict according to custom columns"""
+  ret: dict[str,str] = {
+    'follower': arg['follower'],
+    'followee': arg['followee'],
+    'created_at': arg['created_at']
+  }
+  if choice['mark_blocks']:
+    ret['mark_blocks'] = arg['mark_blocks']
+  return ret

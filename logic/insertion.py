@@ -20,7 +20,6 @@ def clear_bsky(db_path):
 
 async def bsky(db_path, params={'bluesky_length': 10, 'limit': 100, 'querystring': "a"}):
   """Add response data to the Bluesky database table."""
-  print(f'I\'m here.')
   # unpack params
   bluesky_length = params['bluesky_length'] + 1
   follows_limit = 100 if not params['limit'] else int(params['limit'])

@@ -107,7 +107,9 @@ async def jetstream_worker(db_path, params={'max_events': 100, 'event_type': 'po
         db.row_factory = sqlite3.Row
         # Tell the system that the worker is done. 
         db.execute('UPDATE worker_done SET value = (?) WHERE value == (?)', ['true', 'false'])
-        stream_files.get_jetstream_csv(db_path=db_path)
+        stream_files.get_jetstream_csv(db_path=db_path, columns={
+          'mark_blocks': mark_blocks
+          })
         db.commit()
         db.close()
         break

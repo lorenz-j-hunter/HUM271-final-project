@@ -1,8 +1,8 @@
 from sqlite3 import dbapi2 as sqlite3
 import csv, os
-from utils.utils import remove
+from utils.utils import remove, choose_stream_field_names, choose_stream_dict
 
-def get_jetstream_csv(db_path):
+def get_jetstream_csv(db_path, columns: dict[str,str | None]):
   """Populate the csv file for the jetstream"""
   db = sqlite3.connect(db_path, check_same_thread=False)
   db.row_factory = sqlite3.Row
@@ -33,18 +33,20 @@ def get_jetstream_csv(db_path):
   # i.e. if 'follow' was selected
   elif isempty:
     # First, retrieve the data from the database.
-    cur = db.execute('SELECT follower, followee, created_at FROM follows')
+    cur = db.execute('SELECT follower, followee, created_at, blocked FROM follows')
     f = cur.fetchall()
     followee: list[str] = [row[0] for row in f]
     follower: list[str] = [row[1] for row in f]
     created_at: list[str] = [row[2] for row in f]
+    blocked: list[str] = [row[3] for row in f]
     # aggregate into 'posts'
     for i in range(len(follower)): # can be any of the columns
-      line.append(dict({
+      line.append(choose_stream_dict(arg={
         'follower': follower[i],
         'followee': followee[i],
-        'created_at': created_at[i]
-      }))
+        'created_at': created_at[i],
+        'blocked': blocked[i]
+      }, choice=columns))
   db.close()
   # create the csv with aggregated data.
   with open(os.path.relpath('../csvfiles/bsky-jetstream.csv'), 'w', newline='\n') as csvfile:
@@ -55,7 +57,7 @@ def get_jetstream_csv(db_path):
       for post in line:
         writer.writerow(post)
     elif isempty:
-      field_names = ['follower', 'followee', 'created_at']
+      field_names = choose_stream_field_names(columns)
       writer = csv.DictWriter(csvfile, fieldnames=field_names)
       writer.writeheader()
       for follow in line:
