@@ -21,12 +21,12 @@ async def bsky(db_path, params={'bluesky_length': 10, 'limit': 100, 'querystring
   """Add response data to the Bluesky database table."""
   # unpack params
   bluesky_length = params['bluesky_length'] + 1
-  follows_limit = 100 if not params['limit'] else params['limit']
-  posts_limit = 100 if not params['limit'] else params['limit']
+  follows_limit = 100 if not params['limit'] else int(params['limit'])
+  posts_limit = 100 if not params['limit'] else int(params['limit'])
   posts_query = "a" if not params['querystring'] else params['querystring']
   columns = {
-      'age': 'yes',
-      'pronouns': 'yes' 
+      'age': None,
+      'pronouns': None 
     } if not params['columns'] else params['columns']
   # connect database
   db = sqlite3.connect(db_path, check_same_thread=False)
