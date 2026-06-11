@@ -7,6 +7,7 @@ from logic import csv as files
 from logic import jetstream_csv as stream_files
 from logic import backfill
 
+
 """Create the app and make db commands."""
 app = Flask(__name__, static_folder='static')
 
@@ -103,8 +104,6 @@ def start_jetstream_listener():
   # initialize the database
   init_db('jetstream')
   init_db('worker_done')
-  print(f'request.args.get(\'mark-blocks\')={request.args.get('mark-blocks')}')
-  print(f'request.args.get(\'querystring\')={request.args.get('querystring')}')
   # Extract the data user entered from page before.
   db = get_db()
   f = db.execute('SELECT max_events, type FROM args').fetchall() # there's only ever one row in this db.
@@ -221,8 +220,6 @@ def get_rest_requests():
       'pronouns': None if request.args.get('pronouns') == '' else request.args.get('pronouns')
     }
   }
-  print(f'params[\'columns\'].get(\'age\')={params['columns'].get('age')}')
-  print(f'params[\'columns\'].get(\'pronouns\')={params['columns'].get('pronouns')}')
   # clear the bluesky rest database.
   insertion.clear_bsky(app.config['DATABASE'])
   firehose.loop.call_soon_threadsafe(
