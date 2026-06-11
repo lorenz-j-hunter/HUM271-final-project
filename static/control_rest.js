@@ -1,19 +1,6 @@
 hidden = 'content-visibility: hidden;';
 visible = 'content-visibility: visible;';
 
-/*Show the user the form that they chose.*/
-/*
-function show(arg) {
-  document.querySelectorAll('.show').forEach(form => {
-    if (form.id == arg) {
-      form.style = visible;
-    } else {
-      form.style = hidden;
-    }
-  });
-}
-*/
-
 function show_q_form() {
   document.querySelector('#q_form').style = visible;
   document.querySelector('#lim_form').style = hidden;

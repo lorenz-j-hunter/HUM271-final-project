@@ -15,6 +15,7 @@ def backfill(db_path):
   """A wrapper for running a single event on a background loop."""
   asyncio.run_coroutine_threadsafe(rest_update.backfill(db_path), loop)
 
+
 threading.Thread(target=loop_runner, daemon=True).start()
 
 

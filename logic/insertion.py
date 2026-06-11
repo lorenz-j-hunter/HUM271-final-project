@@ -4,7 +4,7 @@ from utils.utils import get_age
 from utils.classes import compound, FieldError
 from sqlite3 import dbapi2 as sqlite3
 from logic.csv import get_bluesky_csv 
-from logic.websocket import loop
+from logic.websocket import loop, loop_runner
 
 
 def clear_bsky(db_path):
@@ -17,8 +17,10 @@ def clear_bsky(db_path):
   db.close()
 
 
+
 async def bsky(db_path, params={'bluesky_length': 10, 'limit': 100, 'querystring': "a"}):
   """Add response data to the Bluesky database table."""
+  print(f'I\'m here.')
   # unpack params
   bluesky_length = params['bluesky_length'] + 1
   follows_limit = 100 if not params['limit'] else int(params['limit'])
@@ -32,8 +34,8 @@ async def bsky(db_path, params={'bluesky_length': 10, 'limit': 100, 'querystring
   db = sqlite3.connect(db_path, check_same_thread=False)
   db.row_factory = sqlite3.Row
   # get requests
-  actors: dict[str, list[dict[str, str]]] = get_bluesky(bluesky_length) 
-  # Now we define some common variables. 
+  actors: dict[str, list[dict[str, str]]] = get_bluesky(bluesky_length)
+  # Now we define some common variables.
   # `identifiers` is a list of handles of users.
   # This is on same dimension as 'bluesky_length' but not for 'follows_limit'.
   identifiers: list[str] = []
@@ -67,7 +69,6 @@ async def bsky(db_path, params={'bluesky_length': 10, 'limit': 100, 'querystring
       continue 
     insertion_list: list[str] = []
     for i in range(posts_limit):
-      print(f'Are we here yet? ({i}) (line 66)')
       # insert a post uri.
       try:
         insertion_list.append(post_response.json().get('posts')[i].get('uri'))
@@ -89,7 +90,6 @@ async def bsky(db_path, params={'bluesky_length': 10, 'limit': 100, 'querystring
       # insert the user ID of the follow.
       insertion_list: list[str] = []
       for i in range(follows_limit):
-        print(f'Are we here yet? ({i}) (line 88)')
         try:
           insertion_list.append(follows_response.json().get('follows')[i].get('did'))
         except IndexError:
@@ -113,7 +113,6 @@ async def bsky(db_path, params={'bluesky_length': 10, 'limit': 100, 'querystring
     # follows:
     f_insertion_list: list[str] = all_follows[identifiers[actor]]
     for e in range(len(f_insertion_list)):
-      print('\tinsert into second_dim (follows, line 112)')
       db.execute('INSERT INTO second_dim_for_bluesky (follows, posts, item_id) VALUES (?, ?, ?)',
                 [f_insertion_list[e],
                   'None',
@@ -127,12 +126,10 @@ async def bsky(db_path, params={'bluesky_length': 10, 'limit': 100, 'querystring
     # likewise for posts > follows and posts == follows.
     if p_insertion_list_len > f_insertion_list_len:
       for e in range(f_insertion_list_len):
-        print('\tupdate second_dim (follows, line 128) (f < p)')
         db.execute('UPDATE second_dim_for_bluesky SET posts = (?) WHERE item_id == (?)',
                     [p_insertion_list[e], e])
         db.commit()
       for e in range(len(p_insertion_list) - f_insertion_list_len):
-        print('\tinsert into second_dim (follows, line 132)')
         db.execute('INSERT INTO second_dim_for_bluesky (follows, posts, item_id) VALUES (?, ?, ?)',
                     ['None',
                       p_insertion_list[e],
@@ -140,7 +137,6 @@ async def bsky(db_path, params={'bluesky_length': 10, 'limit': 100, 'querystring
         db.commit()
     elif f_insertion_list_len > p_insertion_list_len | f_insertion_list_len == p_insertion_list_len:
       for e in range(p_insertion_list_len):
-        print('\tupdate second_dim (follows, line 141) (f > p | f == p)')
         db.execute('UPDATE second_dim_for_bluesky SET posts = (?) WHERE item_id == (?)',
                     [p_insertion_list[e], e])
         db.commit()
@@ -152,7 +148,7 @@ async def bsky(db_path, params={'bluesky_length': 10, 'limit': 100, 'querystring
   db.execute('UPDATE worker_done SET value = (?) WHERE value = (?)', ['true', 'false']) 
   db.commit()
   db.close()
-  loop.stop()
+
 
 def x(db, x_length=10):
   """Add response data to the X database table."""
