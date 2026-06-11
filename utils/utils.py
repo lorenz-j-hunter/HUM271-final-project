@@ -66,3 +66,31 @@ def remove(target: str, sub: str) -> str | None:
     if i == max:
       j = True
   return ret
+
+
+def choose_field_names(columns: dict[str,str]) -> list[str]:
+  """In the context of `get_bluesky_csv`, create a
+  list of custom fieldnames."""
+  ret: list[str] = ['name']
+  if columns['age'] == 'yes':
+    ret.append('age')
+  if columns['pronouns'] == 'yes':
+    ret.append('pronouns') 
+  ret.append('follows')
+  ret.append('posts')
+  return ret 
+
+
+def choose_dict(arg: dict, choice: dict) -> dict[str,list[str]]:
+  """In the context of `get_bluesky_csv()`, 
+  create a dict according to custom columns"""
+  ret: dict = {
+    'name': arg['name'],
+    'follows': arg['follows'], 
+    'posts': arg['posts']
+  }
+  if choice['age'] == 'yes':
+    ret['age'] = arg['age']
+  if choice['pronouns'] == 'yes':
+    ret['pronouns'] = arg['pronouns']
+  return ret 

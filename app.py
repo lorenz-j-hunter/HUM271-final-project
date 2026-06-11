@@ -217,12 +217,10 @@ def get_rest_requests():
     'querystring': None if request.args.get('querystring') == '' else request.args.get('querystring'),
     'limit': None if request.args.get('limit') == '' else request.args.get('limit'),
     'columns': {
-      'did': None if request.args.get('did') == '' else request.args.get('did'),
       'age': None if request.args.get('age') == '' else request.args.get('age'),
       'pronouns': None if request.args.get('pronouns') == '' else request.args.get('pronouns')
     }
   }
-  print(f'params[\'columns\'].get(\'did\')={params['columns'].get('did')}')
   print(f'params[\'columns\'].get(\'age\')={params['columns'].get('age')}')
   print(f'params[\'columns\'].get(\'pronouns\')={params['columns'].get('pronouns')}')
   # clear the bluesky rest database.

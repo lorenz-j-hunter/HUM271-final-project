@@ -24,6 +24,10 @@ async def bsky(db_path, params={'bluesky_length': 10, 'limit': 100, 'querystring
   follows_limit = 100 if not params['limit'] else params['limit']
   posts_limit = 100 if not params['limit'] else params['limit']
   posts_query = "a" if not params['querystring'] else params['querystring']
+  columns = {
+      'age': 'yes',
+      'pronouns': 'yes' 
+    } if not params['columns'] else params['columns']
   # connect database
   db = sqlite3.connect(db_path, check_same_thread=False)
   db.row_factory = sqlite3.Row
@@ -141,7 +145,7 @@ async def bsky(db_path, params={'bluesky_length': 10, 'limit': 100, 'querystring
                     [p_insertion_list[e], e])
         db.commit()
   # Create the csv. This downloads it to their computer.
-  get_bluesky_csv(db)
+  get_bluesky_csv(db, columns)
   # Finally, we let the state know this operation is complete
   # and stop the thread (loop.stop()).
   print('Completed request, stopping worker')

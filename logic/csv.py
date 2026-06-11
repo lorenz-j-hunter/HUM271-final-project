@@ -1,10 +1,11 @@
 from flask import render_template
 import csv, os
+from utils.utils import choose_field_names, choose_dict
 """Functions for returning the csv."""
 
-def get_bluesky_csv(db):
+def get_bluesky_csv(db, columns):
   """Convert the database file into a csv. 
-  The csv represents an undirected and simple graph."""  
+  The csv represents a graph"""  
   consolidated: list[dict[str,list[str]]] = []
   # We open the first dimension here. The only column opened is the one
   # with one dimension.
@@ -26,16 +27,16 @@ def get_bluesky_csv(db):
     posts: list[str] = [row[1] for row in f]
     # `names[item_id]` represents the name of the user in question. Each user has a unique
     # `item_id`, so it is okay to traverse with it.
-    consolidated.append(dict({
-      'datum': [names[item_id-1]], # account for zero-indexing.
+    consolidated.append(choose_dict(arg={
+      'name': [names[item_id-1]], # account for zero-indexing.
       'age': [str(ages[item_id-1])], 
       'pronouns': [pronouns[item_id-1]],
       'follows': follows,
       'posts': posts
-    }))
+    }, choice=columns))
   # We write to the file now. 
   with open('../csvfiles/bluesky.csv', 'w', newline='\n') as csvfile:
-    field_names = ['name', 'account age', 'pronouns', 'follows', 'posts']
+    field_names: list[str] = choose_field_names(columns)
     writer = csv.DictWriter(csvfile, fieldnames=field_names)
     writer.writeheader()
     for item_id in item_ids:
@@ -44,49 +45,49 @@ def get_bluesky_csv(db):
       # case 1: number of follows > number of posts
       if len(follows) > len(posts):
         for i in range(len(posts)):
-          writer.writerow({
+          writer.writerow(choose_dict(arg={ # choose_dict allows user to select which columns to display
             'name': names[item_id-1],
-            'account age': ages[item_id-1],
+            'age': ages[item_id-1],
             'pronouns': pronouns[item_id-1],
             'follows': follows[i],
             'posts': posts[i]
-          })
+          }, choice=columns))
         for i in range(len(posts), len(follows)):
-          writer.writerow({
+          writer.writerow(choose_dict(arg={
             'name': names[item_id-1],
-            'account age': ages[item_id-1],
+            'age': ages[item_id-1],
             'pronouns': pronouns[item_id-1],
             'follows': follows[i],
             'posts': 'None' 
-          })
+          }, choice=columns))
       # case 2: number of follows < number of posts
       elif len(posts) > len(follows):
         for i in range(len(follows)):
-          writer.writerow({
+          writer.writerow(choose_dict(arg={
             'name': names[item_id-1],
-            'account age': ages[item_id-1],
+            'age': ages[item_id-1],
             'pronouns': pronouns[item_id-1],
             'follows': follows[i],
             'posts': posts[i]
-          })
+          }, choice=columns))
         for i in range(len(follows), len(posts)):
-          writer.writerow({
+          writer.writerow(choose_dict(arg={
             'name': names[item_id-1],
-            'account age': ages[item_id-1],
+            'age': ages[item_id-1],
             'pronouns': pronouns[item_id-1],
             'follows': 'None',
             'posts': posts[i]
-          })
+          }, choice=columns))
       # case 3: number of follows == number of posts
       elif len(posts) == len(follows):
         for i in range(len(follows)):
-          writer.writerow({
+          writer.writerow(choose_dict(arg={
             'name': names[item_id-1],
-            'account age': ages[item_id-1],
+            'age': ages[item_id-1],
             'pronouns': pronouns[item_id-1],
             'follows': follows[i],
             'posts': posts[i]
-          })
+          }, choice=columns))
   return render_template('bluesky.html') 
 
 def get_x_csv(db):
@@ -140,7 +141,7 @@ def get_x_csv(db):
   # all of the follows have been printed. Likewise if there are more follows than posts. 
   # Now, we open a flat file and insert to it. 
   with open('../csvfiles/x.csv', 'w', newline='\n') as csvfile:
-    field_names = ['name', 'did', 'account age', 'affiliation', 'verification status' 'follows', 'posts']
+    field_names = ['name', 'did', 'age', 'affiliation', 'verification status' 'follows', 'posts']
     writer = csv.DictWriter(csvfile, fieldnames=field_names)
     writer.writeheader()
     for elem in consolidated:
@@ -152,7 +153,7 @@ def get_x_csv(db):
           writer.writerow({
             'name': elem.get('name', 'None')[0],  
             'did': elem.get('name', 'None')[0], 
-            'account age': elem.get('age', 'None')[0],
+            'age': elem.get('age', 'None')[0],
             'affiliation': elem.get('affiliation', 'None')[0],
             'verification status': elem.get('verified', 'None')[0], 
             'follows': elem['follows'][i],
@@ -162,7 +163,7 @@ def get_x_csv(db):
           writer.writerow({
             'name': elem.get('name', 'None'), 
             'did': elem.get('name', 'None'), 
-            'account age': elem.get('age', 'None')[0],
+            'age': elem.get('age', 'None')[0],
             'affiliation': elem.get('affiliation', 'None')[0],
             'verification status': elem.get('verified', 'None')[0], 
             'follows': elem['follows'][i],
@@ -174,7 +175,7 @@ def get_x_csv(db):
           writer.writerow({
             'name': elem.get('name', 'None'), 
             'did': elem.get('name', 'None'), 
-            'account age': elem.get('age', 'None')[0],
+            'age': elem.get('age', 'None')[0],
             'affiliation': elem.get('affiliation', 'None')[0],
             'verification status': elem.get('verified', 'None')[0], 
             'follows': elem['follows'][i],
@@ -184,7 +185,7 @@ def get_x_csv(db):
           writer.writerow({
             'name': elem.get('name', 'None'), 
             'did': elem.get('name', 'None'), 
-            'account age': elem.get('age', 'None')[0],
+            'age': elem.get('age', 'None')[0],
             'affiliation': elem.get('affiliation', 'None')[0],
             'verification status': elem.get('verified', 'None')[0], 
             'follows': '"None"',
@@ -196,7 +197,7 @@ def get_x_csv(db):
           writer.writerow({
             'name': elem.get('name', 'None'),
             'did': elem.get('name', 'None'), 
-            'account age': elem.get('age', 'None')[0],
+            'age': elem.get('age', 'None')[0],
             'affiliation': elem.get('affiliation', 'None')[0],
             'verification status': elem.get('verified', 'None')[0], 
             'follows': elem['follows'][i],
