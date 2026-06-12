@@ -164,7 +164,7 @@
             <!--Container-->
           </li>
           <!--End Dropdown-->
-          <!--REST API-->
+          <h1 class="visually-hidden">REST</h1> 
           <li id="rest">
             <form action="{{url_for('bluesky_r_ctrl')}}"
             method="POST"
@@ -176,12 +176,11 @@
               <button type="submit" class="nav-link">Submit</button>
             </form>
           </li>
-          <!--End REST API-->
           <!--Jetstream-->
           <li id="jetstream">
             <form action="{{url_for('bluesky_j_ctrl')}}" method="GET" class="nav-link link-body-emphasis">
               Select # Responses And Type
-              <input type="text" placeholder="# of responses" name="max_events" required pattern="[0-9]{1,8}">
+              <input type="text" placeholder="# of responses" name="max_events" required pattern="[0-9]{1,10}">
               <input type="text" placeholder="Type of response" name="pattern" required pattern="(post)|(follow)">
               <button type="submit" class="nav-link">Submit</button>
             </form>

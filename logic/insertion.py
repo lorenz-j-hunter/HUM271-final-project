@@ -105,7 +105,6 @@ async def bsky(db_path, params={'bluesky_length': 10, 'limit': 100, 'querystring
                 actors['actors'][actor].get('did', 'None'),
                 age_months,
                 actors['actors'][actor].get('pronouns', 'None')])
-    db.commit()
     # Now we add to the second dimension for follows and posts. 
     # First we insert into both columns for follows. Then, we update the rows
     # that have been filled with posts.
@@ -116,7 +115,6 @@ async def bsky(db_path, params={'bluesky_length': 10, 'limit': 100, 'querystring
                 [f_insertion_list[e],
                   'None',
                   str(actor)])
-      db.commit()
     # posts:
     f_insertion_list_len: int = len(all_follows[identifiers[actor]])
     p_insertion_list: list[str] = all_posts[identifiers[actor]]
@@ -127,18 +125,15 @@ async def bsky(db_path, params={'bluesky_length': 10, 'limit': 100, 'querystring
       for e in range(f_insertion_list_len):
         db.execute('UPDATE second_dim_for_bluesky SET posts = (?) WHERE item_id == (?)',
                     [p_insertion_list[e], e])
-        db.commit()
       for e in range(len(p_insertion_list) - f_insertion_list_len):
         db.execute('INSERT INTO second_dim_for_bluesky (follows, posts, item_id) VALUES (?, ?, ?)',
                     ['None',
                       p_insertion_list[e],
                       str(actor)])
-        db.commit()
     elif f_insertion_list_len > p_insertion_list_len | f_insertion_list_len == p_insertion_list_len:
       for e in range(p_insertion_list_len):
         db.execute('UPDATE second_dim_for_bluesky SET posts = (?) WHERE item_id == (?)',
                     [p_insertion_list[e], e])
-        db.commit()
   # Create the csv. This downloads it to their computer.
   get_bluesky_csv(db_path, columns)
   # Finally, we let the state know this operation is complete
@@ -146,7 +141,7 @@ async def bsky(db_path, params={'bluesky_length': 10, 'limit': 100, 'querystring
   print('Completed request, stopping worker')
   db.execute('UPDATE worker_done SET value = (?) WHERE value = (?)', ['true', 'false']) 
   db.commit()
-
+  db.close()
 
 def x(db, x_length=10):
   """Add response data to the X database table."""

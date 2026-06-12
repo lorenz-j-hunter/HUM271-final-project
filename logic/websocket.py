@@ -19,6 +19,55 @@ def backfill(db_path):
 threading.Thread(target=loop_runner, daemon=True).start()
 
 
+async def jetstream_batches(stream, type, batch_size=50000):
+  batch = []
+  async for event in stream:
+    if type == 'post':
+      pass
+    elif type == 'follow':
+      pass
+    parsed = parse(event)
+    if parsed is not None:
+      batch.append(parsed)
+
+    if len(batch) == batch_size:
+      yield batch
+      batch = []
+
+  if batch:
+    yield batch
+
+
+async def worker(db_path, type):
+  """Write the rows from the batch generator"""
+  conn = sqlite3.connect(db_path, check_same_thread=False)
+  cur = conn.cursor()
+  cur.execute("BEGIN TRANSACTION;")
+  if type == 'post':
+    async for batch in jetstream_batches(jetstream_stream(), type=type):
+        cur.executemany(
+            'INSERT INTO posts (author_id, text, created_at) VALUES (?, ?, ?)',
+            batch
+        )
+  elif type == 'follow':
+    async for batch in jetstream_batches(jetstream_stream(), type=type):
+        cur.executemany(
+            '''INSERT OR IGNORE INTO follows (follower, followee, created_at, blocked, rkey)
+                      VALUES (?, ?, ?, ?, ?)''',
+            batch
+        )
+        cur.executemany('''INSERT OR IGNORE INTO profiles
+                      (did, display_name, avatar_cid, banner_cid, website, pronouns, created_at, rkey)
+                      VALUES (?,?,?,?,?,?,?,?)''', batch)
+  elif type == 'block':
+    async for batch in jetstream_batches(jetstream_stream(), type=type):
+        cur.executemany(
+            'UPDATE follows SET blocked = (?) WHERE follower = (?) AND followee = (?)',
+            batch
+        )
+  cur.execute("COMMIT;")
+
+
 async def jetstream_stream(cursor=None):
   """Open the stream."""
   url = None
@@ -36,6 +85,7 @@ async def jetstream_stream(cursor=None):
         continue  # skip malformed messages
 
       yield data
+
 
 async def jetstream_worker(db_path, params={'max_events': 100, 'event_type': 'post'}):
   """Get from the stream."""
@@ -67,8 +117,6 @@ async def jetstream_worker(db_path, params={'max_events': 100, 'event_type': 'po
         if ret['path'].find(event_type) != -1 and 'app.bsky.feed.post' == event_type:
           db.execute('INSERT INTO posts (author_id, text, created_at) VALUES (?, ?, ?)',
                   [ret['author_id'], ret['text'], ret['created_at']])
-          db.commit()
-          db.close()
           count += 1
         # Add to the database. (follows)
         elif ret['path'].find(event_type) != -1 and 'app.bsky.graph.follow' == event_type:
@@ -84,22 +132,16 @@ async def jetstream_worker(db_path, params={'max_events': 100, 'event_type': 'po
                       (did, display_name, avatar_cid, banner_cid, website, pronouns, created_at, rkey)
                       VALUES (?,?,?,?,?,?,?,?)''',
                       [ret['follower'],'','','','','','',ret['rkey']])
-            db.commit()
-            db.close()
             count += 1
           # a person has unfollowed. 
           elif ret['op'] == 'delete':
             db.execute('DELETE FROM follows WHERE rkey = (?)',
                             [ret['rkey']])
-            db.commit()
-            db.close()
         elif ret['path'].find('app.bsky.graph.block') != -1 and mark_blocks:
           db = sqlite3.connect(db_path, check_same_thread=False)
           db.row_factory = sqlite3.Row
           db.execute('UPDATE follows SET blocked = (?) WHERE follower = (?) AND followee = (?)',
                     ['true', ret['follower'], ret['followee']])
-          db.commit()
-          db.close()
       # We stop when we have exceeded the desired limit
       if count >= max_events:
         print("Reached max events, stopping worker")
