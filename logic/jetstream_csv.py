@@ -9,7 +9,6 @@ def get_jetstream_csv(db_path, columns: dict[str,str | None]):
   # Determine if its follow or post
   cur = db.execute('SELECT author_id FROM posts')
   isempty: bool = cur.fetchone() is None
-  #
   line: list[dict[str,str]] = []
   # i.e. if 'posts' was selected  
   if not isempty:

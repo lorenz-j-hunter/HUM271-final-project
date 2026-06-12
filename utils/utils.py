@@ -63,7 +63,7 @@ def remove(target: str, sub: str) -> str | None:
     else:
       ret = ret + char
       i = 0 
-    if i == max:
+    if i == max-1:
       j = True
   return ret
 
@@ -95,13 +95,28 @@ def choose_bsky_dict(arg: dict, choice: dict) -> dict[str, list[str]]:
   create a dict according to custom columns"""
   ret: dict[str, list[str]] = {
     'name': [arg['name']],
-    'follows': [arg['follows']], 
-    'posts': [arg['posts']]
+    'follows': arg['follows'], 
+    'posts': arg['posts']
   }
   if choice['age'] == 'yes':
     ret['age'] = [arg['age']]
   if choice['pronouns'] == 'yes':
     ret['pronouns'] = [arg['pronouns']]
+  return ret 
+
+
+def choose_bsky_dict_1(arg: dict, choice: dict) -> dict[str, str]:
+  """In the context of `get_bluesky_csv()`, 
+  create a dict according to custom columns"""
+  ret: dict[str, str] = {
+    'name': arg['name'],
+    'follows': arg['follows'], 
+    'posts': arg['posts']
+  }
+  if choice['age'] == 'yes':
+    ret['age'] = arg['age']
+  if choice['pronouns'] == 'yes':
+    ret['pronouns'] = arg['pronouns']
   return ret 
 
 

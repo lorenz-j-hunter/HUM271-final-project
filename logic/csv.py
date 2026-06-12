@@ -1,11 +1,17 @@
 from flask import render_template
 import csv, os
-from utils.utils import choose_rest_field_names, choose_bsky_dict
+from utils.utils import choose_rest_field_names, choose_bsky_dict, choose_bsky_dict_1
+from sqlite3 import dbapi2 as sqlite3
+
+
 """Functions for returning the csv."""
 
-def get_bluesky_csv(db, columns):
+
+def get_bluesky_csv(db_path, columns):
   """Convert the database file into a csv. 
-  The csv represents a graph"""  
+  The csv represents a graph""" 
+  db = sqlite3.connect(db_path, check_same_thread=False)
+  db.row_factory = sqlite3.Row
   consolidated: list[dict[str,list[str]]] = []
   # We open the first dimension here. The only column opened is the one
   # with one dimension.
@@ -45,7 +51,7 @@ def get_bluesky_csv(db, columns):
       # case 1: number of follows > number of posts
       if len(follows) > len(posts):
         for i in range(len(posts)):
-          writer.writerow(choose_bsky_dict(arg={ # choose_bsky_dict allows user to select which columns to display
+          writer.writerow(choose_bsky_dict_1(arg={
             'name': names[item_id-1],
             'age': ages[item_id-1],
             'pronouns': pronouns[item_id-1],
@@ -53,7 +59,7 @@ def get_bluesky_csv(db, columns):
             'posts': posts[i]
           }, choice=columns))
         for i in range(len(posts), len(follows)):
-          writer.writerow(choose_bsky_dict(arg={
+          writer.writerow(choose_bsky_dict_1(arg={
             'name': names[item_id-1],
             'age': ages[item_id-1],
             'pronouns': pronouns[item_id-1],
@@ -63,7 +69,7 @@ def get_bluesky_csv(db, columns):
       # case 2: number of follows < number of posts
       elif len(posts) > len(follows):
         for i in range(len(follows)):
-          writer.writerow(choose_bsky_dict(arg={
+          writer.writerow(choose_bsky_dict_1(arg={
             'name': names[item_id-1],
             'age': ages[item_id-1],
             'pronouns': pronouns[item_id-1],
@@ -71,7 +77,7 @@ def get_bluesky_csv(db, columns):
             'posts': posts[i]
           }, choice=columns))
         for i in range(len(follows), len(posts)):
-          writer.writerow(choose_bsky_dict(arg={
+          writer.writerow(choose_bsky_dict_1(arg={
             'name': names[item_id-1],
             'age': ages[item_id-1],
             'pronouns': pronouns[item_id-1],
@@ -81,14 +87,15 @@ def get_bluesky_csv(db, columns):
       # case 3: number of follows == number of posts
       elif len(posts) == len(follows):
         for i in range(len(follows)):
-          writer.writerow(choose_bsky_dict(arg={
+          writer.writerow(choose_bsky_dict_1(arg={
             'name': names[item_id-1],
             'age': ages[item_id-1],
             'pronouns': pronouns[item_id-1],
             'follows': follows[i],
             'posts': posts[i]
           }, choice=columns))
-  return render_template('bluesky.html') 
+  db.close()
+
 
 def get_x_csv(db):
   """Convert the database file into a csv. 

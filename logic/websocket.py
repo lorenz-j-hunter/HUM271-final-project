@@ -147,7 +147,7 @@ async def parse(event, params={}):
     ret['created_at'] = record.get('createdAt')
     if querystring:
       # if querystring is not in title text
-      if ret['text'].find(querystring) != -1:
+      if ret['text'].find(querystring) == -1:
         ret = {}
         ret['status'] = 'failure'
         return ret

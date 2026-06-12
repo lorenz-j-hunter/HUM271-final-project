@@ -132,7 +132,7 @@ def start_jetstream_listener():
 
 @app.route('/worker_status')
 def worker_status():
-  """Activate a feature only once the jetstream worker is done."""
+  """Return whether an async worker is done."""
   db = get_db()
   cur = None
   while cur is None:

@@ -140,13 +140,12 @@ async def bsky(db_path, params={'bluesky_length': 10, 'limit': 100, 'querystring
                     [p_insertion_list[e], e])
         db.commit()
   # Create the csv. This downloads it to their computer.
-  get_bluesky_csv(db, columns)
+  get_bluesky_csv(db_path, columns)
   # Finally, we let the state know this operation is complete
   # and stop the thread (loop.stop()).
   print('Completed request, stopping worker')
   db.execute('UPDATE worker_done SET value = (?) WHERE value = (?)', ['true', 'false']) 
   db.commit()
-  db.close()
 
 
 def x(db, x_length=10):
