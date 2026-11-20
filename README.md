@@ -39,7 +39,7 @@ said author. The third column (edges) will be the feed they are in, or the recip
 column (edge width) will be the overall expressed disdain of masculinity in particular within the text.
 
 ### Methodology
-Lorenz works on this all by himself during the summer.
+Lorenz works on this by himself during the summer.
 
 See more in the 'Final Project Essay' section.
 
@@ -52,12 +52,3 @@ See more in the 'Final Project Essay' section.
 #### API Sites
   Bluesky
     - https://docs.bsky.app      
-  X
-    - https://docs.x.com
-  Pornhub
-    - https://rapidapi.com/PornAPIs/api/pornhub2
-
-#### Final Project Essay
-  This is like a longer version of this README.
-  It includes a discussion of the literature review, unlike this README.
-  [Here it is.]("C:\Users\LJH10\OneDrive\Documents\HUM271 - Final Project Essay.docx")
